@@ -1,0 +1,428 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@800&display=swap');
+
+@font-face {
+  font-family: 'Glacial Indifference';
+  src: url('https://fonts.cdnfonts.com/s/14237/GlacialIndifference-Regular.woff') format('woff');
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Page shell ───────────────────────────────────────── */
+.login-container {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  overflow: hidden;
+  background: #050810;
+}
+
+/* ── Background video ─────────────────────────────────── */
+.bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: brightness(0.35) saturate(1.2);
+  pointer-events: none;
+  transform: scale(1.04); /* prevent edge flicker */
+}
+
+/* ── Gradient overlays ────────────────────────────────── */
+.login-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 50%, rgba(37,99,235,0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 80% at 85% 20%, rgba(139,92,246,0.12) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(5,8,16,0.3) 0%, rgba(5,8,16,0.5) 100%);
+  pointer-events: none;
+}
+
+/* ── Floating orbs ────────────────────────────────────── */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 1;
+  animation: orb-drift 12s ease-in-out infinite;
+}
+.orb-1 {
+  width: 520px; height: 520px;
+  background: radial-gradient(circle, rgba(37,99,235,0.22) 0%, transparent 70%);
+  top: -120px; left: -80px;
+  animation-delay: 0s;
+}
+.orb-2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(139,92,246,0.16) 0%, transparent 70%);
+  bottom: -60px; left: 30%;
+  animation-delay: -4s;
+}
+.orb-3 {
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 70%);
+  top: 20%; right: 10%;
+  animation-delay: -8s;
+}
+@keyframes orb-drift {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  33%       { transform: translateY(-28px) translateX(14px); }
+  66%       { transform: translateY(14px) translateX(-20px); }
+}
+
+/* ── Header / Nav ─────────────────────────────────────── */
+.header-nav {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  padding: 28px 56px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  /* Subtle top fade */
+  background: linear-gradient(180deg, rgba(5,8,16,0.5) 0%, transparent 100%);
+}
+
+.logo-white {
+  height: 36px;
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+  transition: opacity 0.2s;
+}
+.logo-white:hover { opacity: 1; }
+
+
+
+/* ── Content layout ───────────────────────────────────── */
+.content-wrapper {
+  width: 100%;
+  max-width: 1300px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 7%;
+  gap: 60px;
+  z-index: 5;
+  position: relative;
+}
+
+/* ── Branding box ─────────────────────────────────────── */
+.branding-box {
+  color: white;
+  max-width: 520px;
+  flex-shrink: 0;
+}
+
+.branding-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 20px;
+}
+.branding-eyebrow::before {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 1.5px;
+  background: rgba(255,255,255,0.4);
+}
+
+.main-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 4.6rem;
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -2.5px;
+  margin-bottom: 28px;
+  /* Gradient text */
+  background: linear-gradient(135deg, #ffffff 30%, rgba(255,255,255,0.55) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sub-text {
+  font-family: 'Glacial Indifference', sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.55);
+  max-width: 400px;
+  margin-bottom: 40px;
+}
+
+/* Stats row */
+.branding-stats {
+  display: flex;
+  gap: 32px;
+}
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.stat-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -1px;
+}
+.stat-label {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.stat-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255,255,255,0.12);
+  align-self: center;
+}
+
+/* ── Login card ───────────────────────────────────────── */
+.login-card {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  width: 100%;
+  max-width: 500px;
+  padding: 52px 48px 48px;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 32px 64px rgba(0,0,0,0.5),
+    0 2px 0 rgba(255,255,255,0.06) inset;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle card shimmer top edge */
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+}
+
+.card-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 10px;
+}
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.card-welcome {
+  font-family: 'Glacial Indifference', sans-serif;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.92rem;
+  margin-bottom: 34px;
+  line-height: 1.5;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 32px;
+}
+
+/* ── Error message ────────────────────────────────────── */
+.error-msg {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #fca5a5;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 22px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+/* ── Form ─────────────────────────────────────────────── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 8px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 15px 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-family: 'Poppins', sans-serif;
+  color: #fff;
+  outline: none;
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+}
+.input-group input::placeholder {
+  color: rgba(255,255,255,0.2);
+}
+.input-group input:focus {
+  border-color: rgba(37,99,235,0.7);
+  background: rgba(255,255,255,0.09);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+  padding: 4px;
+}
+.eye-btn:hover { color: rgba(255,255,255,0.7); }
+
+.forgot-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+.forgot-container a {
+  text-decoration: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: color 0.2s;
+  letter-spacing: 0.01em;
+}
+.forgot-container a:hover { color: rgba(255,255,255,0.7); }
+
+/* ── Login button ─────────────────────────────────────── */
+.login-btn {
+  position: relative;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  margin-top: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(37,99,235,0.35);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.login-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+  border-radius: inherit;
+}
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(37,99,235,0.45);
+}
+.login-btn:active { transform: translateY(0); }
+
+/* ── Footer ───────────────────────────────────────────── */
+.signup-footer {
+  text-align: center;
+  margin-top: 26px;
+  color: rgba(255,255,255,0.3);
+  font-size: 0.83rem;
+}
+.signup-footer a {
+  color: rgba(255,255,255,0.75);
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.signup-footer a:hover { color: #fff; }
+
+/* ── Mobile ≤ 1100px ──────────────────────────────────── */
+@media (max-width: 1100px) {
+  .content-wrapper {
+    flex-direction: column;
+    justify-content: center;
+    padding: 110px 24px 60px;
+    gap: 40px;
+  }
+  .branding-box {
+    text-align: center;
+    max-width: 600px;
+  }
+  .branding-eyebrow { justify-content: center; }
+  .branding-eyebrow::before { display: none; }
+  .sub-text { margin: 0 auto 36px; }
+  .branding-stats { justify-content: center; }
+  .main-title { font-size: 3.4rem; letter-spacing: -1.5px; }
+  .header-nav { padding: 20px 24px; }
+  .login-card { max-width: 520px; padding: 40px 36px; }
+}
+
+@media (max-width: 600px) {
+  .main-title { font-size: 2.6rem; letter-spacing: -1px; }
+  .card-title { font-size: 2rem; }
+  .login-card { padding: 32px 24px; border-radius: 22px; }
+  .branding-stats { gap: 20px; }
+  .stat-num { font-size: 1.3rem; }
+  .content-wrapper { padding: 100px 16px 40px; }
+  .header-nav { padding: 16px 20px; }
+  .logo-white { height: 30px; }
+}
