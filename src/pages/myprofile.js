@@ -1,88 +1,90 @@
-import React, { useState, useEffect } from "react";
-import { Camera, User } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Camera, User, Mail, Phone, Hash, Shield,
+  Pencil, Check, X, BookOpen, Star
+} from "lucide-react";
 import axios from "axios";
 import "../styles/myprofile.css";
 
-const MyProfile = ({ user, onProfileUpdate }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    name: "",
-    phone: "",
-    about: "",
-    avatar: "",
-  });
+const permissionsMap = {
+  admin:     ["Full System Access", "User Management", "Project Approval"],
+  manager:   ["Team Access", "Project View", "Task Management"],
+  executive: ["Project View", "Reports Access"],
+  finance:   ["Financial View", "Invoicing"],
+  viewer:    ["Read Only Access"],
+};
 
-  // 1. Fetch fresh data from DB using the ID when the component loads
+const roleColors = {
+  admin:     { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.35)',  text: '#fca5a5'  },
+  manager:   { bg: 'rgba(37,99,235,0.18)',  border: 'rgba(37,99,235,0.4)',   text: '#93c5fd'  },
+  executive: { bg: 'rgba(139,92,246,0.18)', border: 'rgba(139,92,246,0.4)',  text: '#c4b5fd'  },
+  finance:   { bg: 'rgba(16,185,129,0.18)', border: 'rgba(16,185,129,0.4)',  text: '#6ee7b7'  },
+  viewer:    { bg: 'rgba(148,163,184,0.18)',border: 'rgba(148,163,184,0.4)', text: '#cbd5e1'  },
+};
+
+const MyProfile = ({ user, onProfileUpdate }) => {
+  const [isEditing, setIsEditing]   = useState(false);
+  const [ready,     setReady]       = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: "", phone: "", about: "", avatar: "",
+  });
+  const [draft, setDraft] = useState({});
+  const fileRef = useRef();
+
+  /* ── Fetch ──────────────────────────────────────────── */
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetch = async () => {
       if (!user?.id) return;
       try {
         const res = await axios.get(`http://localhost:5000/api/users/${user.id}`);
         if (res.data.success) {
-          setProfileData({
-            name: res.data.user.name || "",
-            phone: res.data.user.phone || "",
-            about: res.data.user.about || "",
-            avatar: res.data.user.avatar || "",
-          });
+          const u = res.data.user;
+          setProfileData({ name: u.name||"", phone: u.phone||"", about: u.about||"", avatar: u.avatar||"" });
         }
-      } catch (err) {
-        console.error("Error fetching user from DB:", err);
-      }
+      } catch (err) { console.error("Error fetching user:", err); }
     };
-    fetchUserData();
+    fetch();
+    setTimeout(() => setReady(true), 80);
   }, [user?.id]);
 
-  // 2. Role-based Permissions Mapping
-  const permissionsMap = {
-    admin: ["Full System Access", "User Management", "Project Approval"],
-    manager: ["Team Access", "Project View", "Task Management"],
-    executive: ["Project View", "Reports Access"],
-    finance: ["Financial View", "Invoicing"],
-    viewer: ["Read Only Access"],
+  /* ── Edit / Cancel ──────────────────────────────────── */
+  const startEdit = () => {
+    setDraft({ ...profileData });
+    setIsEditing(true);
   };
-  const currentPermissions = permissionsMap[user?.role] || ["Basic Access"];
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setDraft({});
+  };
 
-  // 3. Handle Image Upload & Convert to Base64 (Integrated from snippet 1)
+  /* ── Avatar upload ──────────────────────────────────── */
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-        if (file.size > 5 * 1024 * 1024) {
-        alert("File is too large! Please choose an image under 5MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileData((prev) => ({ ...prev, avatar: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert("File too large (max 5MB)."); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => setDraft((p) => ({ ...p, avatar: reader.result }));
+    reader.readAsDataURL(file);
   };
 
-  // 4. Save Function: Updates Database, LocalStorage, and Parent State
+  /* ── Save ───────────────────────────────────────────── */
   const handleSave = async () => {
     try {
-      const res = await axios.put(
-        `http://localhost:5000/api/users/${user.id}/profile`,
-        {
-          name: profileData.name,
-          phone: profileData.phone,
-          about: profileData.about,
-          avatar: profileData.avatar,
-          email: user.email,
-          role: user.role,
-        }
-      );
-
+      const res = await axios.put(`http://localhost:5000/api/users/${user.id}/profile`, {
+        name:   draft.name,
+        phone:  draft.phone,
+        about:  draft.about,
+        avatar: draft.avatar,
+        email:  user.email,
+        role:   user.role,
+      });
       if (res.data.success) {
-        // Update local session for persistence
-        const updatedUser = { ...user, ...profileData };
+        setProfileData({ ...draft });
+        const updatedUser = { ...user, ...draft };
         localStorage.setItem("loggedInUser", JSON.stringify(updatedUser));
-
-        // Notify Parent (Dashboard) to refresh TopNav/UI
         if (onProfileUpdate) onProfileUpdate();
-
         setIsEditing(false);
+        setDraft({});
         alert("Profile updated successfully!");
       }
     } catch (err) {
@@ -91,96 +93,168 @@ const MyProfile = ({ user, onProfileUpdate }) => {
     }
   };
 
+  const currentPermissions = permissionsMap[user?.role?.toLowerCase()] || ["Basic Access"];
+  const roleStyle = roleColors[user?.role?.toLowerCase()] || roleColors.viewer;
+  const displayAvatar = isEditing ? draft.avatar : profileData.avatar;
+  const displayName   = (isEditing ? draft.name : profileData.name) || "User Profile";
+
   return (
-    <div className="dashboard-content">
-      <div className="profile-card">
-        <div className="profile-header-row">
-          {/* Avatar Section */}
-          <div className="avatar-section">
-            <div className="avatar-circle">
-              {profileData.avatar ? (
-                <img src={profileData.avatar} alt="Profile" className="avatar-img" />
-              ) : (
-                <User size={60} color="#ccc" />
-              )}
+    <div className={`mp-page ${ready ? "mp-ready" : ""}`}>
+
+      {/* ── Hero banner ──────────────────────────────── */}
+      <div className="mp-hero">
+
+        {/* Avatar */}
+        <div className="mp-avatar-wrap">
+          <div className="mp-avatar">
+            {displayAvatar
+              ? <img src={displayAvatar} alt="Profile" />
+              : <User size={40} color="rgba(255,255,255,0.5)" />
+            }
+          </div>
+          {isEditing && (
+            <label className="mp-avatar-upload" title="Change photo">
+              <Camera size={14} />
+              <input type="file" hidden accept="image/*" ref={fileRef} onChange={handleImageChange} />
+            </label>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="mp-hero-info">
+          <div className="mp-hero-name">{displayName}</div>
+          <div className="mp-hero-meta">
+            <span className="mp-hero-email">{user?.email}</span>
+            <span
+              className="mp-role-badge"
+              style={{ background: roleStyle.bg, borderColor: roleStyle.border, color: roleStyle.text }}
+            >
+              {user?.role || "viewer"}
+            </span>
+          </div>
+          <div className="mp-hero-id">ID · {String(user?.id || 0).padStart(5, '0')}</div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="mp-hero-actions">
+          {isEditing ? (
+            <>
+              <button className="mp-btn-cancel" onClick={cancelEdit}>
+                <X size={13} /> Cancel
+              </button>
+              <button className="mp-btn-save" onClick={handleSave}>
+                <Check size={13} /> Save
+              </button>
+            </>
+          ) : (
+            <button className="mp-btn-edit" onClick={startEdit}>
+              <Pencil size={13} /> Edit Profile
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Body grid ────────────────────────────────── */}
+      <div className="mp-body">
+
+        {/* ── Contact info card ── */}
+        <div className="mp-card">
+          <div className="mp-card-title">
+            <div className="mp-card-title-icon"><User size={12} /></div>
+            Contact Info
+          </div>
+
+          {/* Name */}
+          <div className="mp-detail-row">
+            <div className="mp-detail-icon"><User size={14} /></div>
+            <div className="mp-detail-content">
+              <div className="mp-detail-label">Full Name</div>
+              {isEditing
+                ? <input className="mp-input" value={draft.name} onChange={(e) => setDraft({...draft, name: e.target.value})} placeholder="Your full name" />
+                : <div className={`mp-detail-value ${!profileData.name ? 'muted' : ''}`}>{profileData.name || "Not set"}</div>
+              }
             </div>
-            {isEditing && (
-              <label className="upload-icon-label">
-                <Camera size={18} />
-                <span>Change Photo</span>
-                <input 
-                  type="file" 
-                  hidden 
-                  onChange={handleImageChange} 
-                  accept="image/*" 
-                />
-              </label>
-            )}
           </div>
 
-          {/* Info Section */}
-          <div className="info-section">
-            {isEditing ? (
-              <div className="details-grid">
-                <span className="label">Name:</span>
-                <input 
-                  className="grid-input"
-                  value={profileData.name} 
-                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} 
-                />
-                <span className="label">Phone:</span>
-                <input 
-                  className="grid-input"
-                  value={profileData.phone} 
-                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} 
-                />
+          {/* Email */}
+          <div className="mp-detail-row">
+            <div className="mp-detail-icon"><Mail size={14} /></div>
+            <div className="mp-detail-content">
+              <div className="mp-detail-label">Email</div>
+              <div className="mp-detail-value">{user?.email}</div>
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div className="mp-detail-row">
+            <div className="mp-detail-icon"><Phone size={14} /></div>
+            <div className="mp-detail-content">
+              <div className="mp-detail-label">Phone</div>
+              {isEditing
+                ? <input className="mp-input" value={draft.phone} onChange={(e) => setDraft({...draft, phone: e.target.value})} placeholder="+63 9XX XXX XXXX" />
+                : <div className={`mp-detail-value ${!profileData.phone ? 'muted' : ''}`}>{profileData.phone || "Not set"}</div>
+              }
+            </div>
+          </div>
+
+          {/* ID */}
+          <div className="mp-detail-row">
+            <div className="mp-detail-icon"><Hash size={14} /></div>
+            <div className="mp-detail-content">
+              <div className="mp-detail-label">Employee ID</div>
+              <div className="mp-detail-value">{String(user?.id || 0).padStart(5, '0')}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Role & permissions card ── */}
+        <div className="mp-card">
+          <div className="mp-card-title">
+            <div className="mp-card-title-icon"><Shield size={12} /></div>
+            Role & Permissions
+          </div>
+
+          {/* Role row */}
+          <div className="mp-detail-row">
+            <div className="mp-detail-icon"><Star size={14} /></div>
+            <div className="mp-detail-content">
+              <div className="mp-detail-label">Current Role</div>
+              <div className="mp-detail-value" style={{ textTransform: 'capitalize' }}>
+                {user?.role || "Viewer"}
               </div>
-            ) : (
-              <>
-                <h1 className="profile-name">{profileData.name || "User Profile"}</h1>
-                <div className="details-grid">
-                  <span className="label">Email:</span><span className="value">{user?.email}</span>
-                  <span className="label">Phone:</span><span className="value">{profileData.phone || "Not Set"}</span>
-                  <span className="label">ID NO:</span><span className="value">000{user?.id}</span>
-                  <span className="label">Role:</span><span className="value">{user?.role}</span>
-                </div>
-              </>
-            )}
+            </div>
           </div>
 
-          <button className="edit-btn" onClick={isEditing ? handleSave : () => setIsEditing(true)}>
-            {isEditing ? "SAVE" : "EDIT"}
-          </button>
-        </div>
-
-        <div className="divider" />
-
-        {/* Permissions Section */}
-        <div className="profile-section">
-          <h3>Permissions:</h3>
-          <div className="permissions-list">
-            {currentPermissions.map((perm, i) => (
-              <span key={i} className="permission-pill">{perm}</span>
-            ))}
+          {/* Permission pills */}
+          <div style={{ marginTop: 14 }}>
+            <div className="mp-detail-label" style={{ marginBottom: 10 }}>Access Permissions</div>
+            <div className="mp-perms">
+              {currentPermissions.map((perm, i) => (
+                <span key={i} className="mp-perm-pill">{perm}</span>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* About Section */}
-        <div className="profile-section">
-          <h3>About</h3>
-          <div className="about-box">
-            {isEditing ? (
-              <textarea
-                className="about-textarea"
-                value={profileData.about}
-                onChange={(e) => setProfileData({ ...profileData, about: e.target.value })}
-                placeholder="Tell us about yourself..."
+        {/* ── About card (full width) ── */}
+        <div className="mp-card mp-body-full">
+          <div className="mp-card-title">
+            <div className="mp-card-title-icon"><BookOpen size={12} /></div>
+            About
+          </div>
+          {isEditing
+            ? <textarea
+                className="mp-textarea"
+                value={draft.about}
+                onChange={(e) => setDraft({...draft, about: e.target.value})}
+                placeholder="Tell your team a bit about yourself..."
               />
-            ) : (
-              <p>{profileData.about || "Click EDIT to update your description..."}</p>
-            )}
-          </div>
+            : <p className={`mp-about-text ${!profileData.about ? 'empty' : ''}`}>
+                {profileData.about || "No description yet. Click Edit Profile to add one."}
+              </p>
+          }
         </div>
+
       </div>
     </div>
   );

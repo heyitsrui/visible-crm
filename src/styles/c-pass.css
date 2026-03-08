@@ -1,110 +1,315 @@
-/* src/styles/c-pass.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Page wrapper ───────────────────────────────────────── */
 .cpass-wrapper {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 40px;
-  min-height: 80vh;
-  background-color: #f8fafc; /* Light aesthetic grey/blue background */
-}
-
-.cpass-card {
-  background: #ffffff;
-  padding: 2.5rem;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-  width: 100%;
-  max-width: 450px;
-  transition: transform 0.3s ease;
-}
-
-.cpass-title {
+  padding: 4px 0 40px;
   font-family: 'Poppins', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.cpass-wrapper.cp-ready {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-.cpass-subtitle {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-bottom: 2rem;
+/* ── Outer column ───────────────────────────────────────── */
+.cpass-col {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.cpass-group {
-  margin-bottom: 1.5rem;
+/* ── Hero banner ────────────────────────────────────────── */
+.cpass-hero {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%);
+  border-radius: 20px;
+  padding: 28px 32px;
   position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 18px;
 }
+.cpass-hero::before {
+  content: '';
+  position: absolute;
+  width: 240px; height: 240px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  top: -80px; right: -40px;
+  pointer-events: none;
+}
+.cpass-hero::after {
+  content: '';
+  position: absolute;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  bottom: -40px; left: 25%;
+  pointer-events: none;
+}
+.cpass-hero-icon {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  backdrop-filter: blur(8px);
+}
+.cpass-hero-text { flex: 1; }
+.cpass-hero-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.4px;
+  margin-bottom: 3px;
+}
+.cpass-hero-sub {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.5;
+}
+
+/* ── White card ─────────────────────────────────────────── */
+.cpass-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 28px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  border: 1px solid #e4e8f0;
+}
+
+/* ── Section label ──────────────────────────────────────── */
+.cpass-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cpass-section-icon {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Field group ────────────────────────────────────────── */
+.cpass-group {
+  margin-bottom: 16px;
+}
+.cpass-group:last-of-type { margin-bottom: 0; }
 
 .cpass-label {
   display: block;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #475569;
-  margin-bottom: 0.5rem;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 7px;
 }
+.cpass-label span { color: #ef4444; }
 
-.cpass-label span {
-  color: #ef4444;
-}
-
+/* ── Input ──────────────────────────────────────────────── */
 .cpass-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
 }
-
 .cpass-input {
   width: 100%;
-  padding: 12px 16px;
+  padding: 11px 44px 11px 14px;
+  background: #f8fafc;
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
+  font-size: 13px;
+  font-family: 'Poppins', sans-serif;
+  color: #1a202c;
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
-
+.cpass-input::placeholder { color: #cbd5e1; }
 .cpass-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
 }
+.cpass-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .cpass-eye-icon {
   position: absolute;
-  right: 12px;
+  right: 13px;
   color: #94a3b8;
   cursor: pointer;
+  display: flex; align-items: center;
+  padding: 4px;
   transition: color 0.2s;
+  border: none; background: none;
 }
+.cpass-eye-icon:hover { color: #2563eb; }
 
-.cpass-eye-icon:hover {
-  color: #3b82f6;
+/* ── Password strength bar ──────────────────────────────── */
+.cpass-strength {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
-
-.cpass-button {
-  width: 100%;
-  padding: 14px;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 10px;
+.cpass-strength-bars {
+  display: flex;
+  gap: 4px;
+}
+.cpass-strength-bar {
+  height: 3px;
+  flex: 1;
+  border-radius: 99px;
+  background: #e2e8f0;
+  transition: background 0.3s;
+}
+.cpass-strength-bar.active-weak   { background: #ef4444; }
+.cpass-strength-bar.active-fair   { background: #f59e0b; }
+.cpass-strength-bar.active-good   { background: #3b82f6; }
+.cpass-strength-bar.active-strong { background: #10b981; }
+.cpass-strength-label {
+  font-size: 10px;
   font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.cpass-strength-label.weak   { color: #ef4444; }
+.cpass-strength-label.fair   { color: #f59e0b; }
+.cpass-strength-label.good   { color: #3b82f6; }
+.cpass-strength-label.strong { color: #10b981; }
 
-.cpass-button:hover {
-  background-color: #2563eb;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+/* Match indicator */
+.cpass-match {
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cpass-match.ok  { color: #10b981; }
+.cpass-match.err { color: #ef4444; }
+
+/* ── Error bubble ───────────────────────────────────────── */
+.cpass-error {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
-.cpass-button:disabled {
-  background-color: #94a3b8;
-  cursor: not-allowed;
+/* ── Submit button ──────────────────────────────────────── */
+.cpass-button {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  border: none;
+  padding: 13px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-top: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(37,99,235,0.3);
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.cpass-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+  border-radius: inherit;
+}
+.cpass-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 26px rgba(37,99,235,0.4);
+}
+.cpass-button:active:not(:disabled) { transform: translateY(0); }
+.cpass-button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Spinner */
+.cp-spinner { animation: cp-spin 0.8s linear infinite; }
+@keyframes cp-spin { to { transform: rotate(360deg); } }
+
+/* ── Tip card ───────────────────────────────────────────── */
+.cpass-tips {
+  background: #f8fafc;
+  border: 1px solid #e4e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.cpass-tips-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+.cpass-tips ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cpass-tips li {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cpass-tips li::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  flex-shrink: 0;
+}
+.cpass-tips li.met { color: #10b981; }
+.cpass-tips li.met::before { background: #10b981; }
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .cpass-wrapper { padding: 4px 0 24px; }
+  .cpass-hero { padding: 22px 20px; }
+  .cpass-hero-title { font-size: 16px; }
+  .cpass-card { padding: 22px 18px 20px; }
 }

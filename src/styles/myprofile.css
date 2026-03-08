@@ -1,287 +1,407 @@
-/* =================================================== 
-   FONTS & ROOT VARIABLES 
-   =================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
-@font-face {
-  font-family: 'Glacial Indifference';
-  src: url('https://fonts.cdnfonts.com/s/14237/GlacialIndifference-Regular.woff') format('woff');
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  --sidebar-width: 250px;
-  --brand-teal: #3ba3a5;
-  --brand-blue: #0066b2;
-  --brand-blue-hover: #003d80;
-  --bg-main: #f4f7f6;
-  --bg-white: #ffffff;
-  --text-primary: #333;
-  --text-secondary: #666;
-  --gray-pill: #e0e0e0;
-}
-
-/* =================================================== 
-   GLOBAL RESET 
-   =================================================== */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
+/* ── Page wrapper (inside .dashboard-content) ───────────────────── */
+.mp-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 4px 0 32px;
   font-family: 'Poppins', sans-serif;
-  background-color: var(--bg-main);
-  color: var(--text-primary);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.mp-page.mp-ready {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* =================================================== 
-   PROFILE CONTAINER & CARD 
-   =================================================== */
-.profile-container {
+/* ── Hero card ──────────────────────────────────────────────────── */
+.mp-hero {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%);
+  border-radius: 20px;
+  padding: 32px 36px;
   display: flex;
-  justify-content: center;
-  padding: 40px;
-}
-
-.profile-card {
-  background: var(--bg-white);
-  width: 100%;
-  max-width: 900px;
-  border-radius: 30px; /* From your first integration block */
-  padding: 40px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin: auto;
-}
-
-/* =================================================== 
-   HEADER SECTION 
-   =================================================== */
-.profile-header-row {
-  display: flex;
-  gap: 40px;
-  align-items: flex-start;
-  width: 100%;
+  align-items: flex-end;
+  gap: 28px;
   position: relative;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 25px;
-}
-
-/* Avatar Styling */
-.avatar-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.avatar-circle {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
   overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 5px solid #fff;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-  background-color: #f9f9f9;
+  margin-bottom: 20px;
 }
 
-.avatar-circle img {
-  width: 100%;
-  height: 100%;
+/* Decorative orbs in hero */
+.mp-hero::before {
+  content: '';
+  position: absolute;
+  width: 320px; height: 320px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  top: -100px; right: -60px;
+  pointer-events: none;
+}
+.mp-hero::after {
+  content: '';
+  position: absolute;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  bottom: -60px; left: 20%;
+  pointer-events: none;
+}
+
+/* Avatar */
+.mp-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.mp-avatar {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.mp-avatar img {
+  width: 100%; height: 100%;
   object-fit: cover;
 }
-
-/* Camera Upload Icon Overlay */
-.upload-icon-label {
-  margin-top: -35px;
-  margin-left: 100px;
-  background: var(--brand-blue);
-  color: white;
-  padding: 10px;
+.mp-avatar-upload {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 30px; height: 30px;
   border-radius: 50%;
+  background: #fff;
+  color: #2563eb;
+  border: 2px solid #2563eb;
+  display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
   z-index: 2;
 }
-
-.upload-icon-label span {
-  display: none; /* Keep it clean with just the icon */
+.mp-avatar-upload:hover {
+  background: #2563eb;
+  color: #fff;
+  transform: scale(1.1);
 }
 
-/* =================================================== 
-   INFO SECTION & INPUTS 
-   =================================================== */
-.info-section { 
-  flex-grow: 1; 
+/* Hero text */
+.mp-hero-info {
+  flex: 1;
+  min-width: 0;
 }
-
-.profile-name { 
-  font-size: 32px; 
-  font-weight: 800; 
-  margin-bottom: 15px;
-  color: #000;
+.mp-hero-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.details-grid {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  row-gap: 12px;
-  font-size: 16px;
+.mp-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-
-.label { 
-  font-weight: 700; 
-  color: var(--text-primary); 
+.mp-hero-email {
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+  letter-spacing: 0.01em;
 }
-
-.value { 
-  color: var(--text-secondary); 
-}
-
-/* Edit Mode Inputs */
-.grid-input {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  width: 100%;
-  font-family: inherit;
-}
-
-.edit-btn {
-  background-color: var(--brand-blue);
-  color: white;
-  border: none;
-  padding: 12px 30px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: 0.3s;
-}
-
-.edit-btn:hover { 
-  background-color: var(--brand-blue-hover); 
-}
-
-.save-mode {
-  background-color: #28a745 !important; /* Green for Save */
-}
-
-/* =================================================== 
-   PERMISSIONS & ABOUT SECTIONS 
-   =================================================== */
-.divider { 
-  border: 0; 
-  border-top: 1px solid #eee; 
-  margin: 10px 0; 
-}
-
-.profile-section h3 { 
-  margin-bottom: 15px; 
-  font-size: 20px; 
+.mp-role-badge {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  font-size: 10px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 3px 10px;
+  border-radius: 99px;
+  backdrop-filter: blur(6px);
+}
+.mp-hero-id {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 6px;
 }
 
-.permissions-list {
+/* Hero action buttons */
+.mp-hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+.mp-btn-edit {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  display: flex; align-items: center; gap: 6px;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+.mp-btn-edit:hover {
+  background: rgba(255,255,255,0.28);
+  transform: translateY(-1px);
+}
+.mp-btn-save {
+  background: #fff;
+  border: 1.5px solid #fff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  display: flex; align-items: center; gap: 6px;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+.mp-btn-save:hover {
+  background: #f0f6ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.2);
+}
+.mp-btn-cancel {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: background 0.2s;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mp-btn-cancel:hover { background: rgba(255,255,255,0.18); }
+
+/* ── Two-column body ────────────────────────────────────────────── */
+.mp-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.mp-body-full { grid-column: 1 / -1; }
+
+/* ── White card ─────────────────────────────────────────────────── */
+.mp-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  border: 1px solid #e4e8f0;
+}
+
+.mp-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.mp-card-title-icon {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Detail rows ────────────────────────────────────────────────── */
+.mp-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.mp-detail-row:last-child { border-bottom: none; }
+
+.mp-detail-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: #f0f7ff;
+  color: #2563eb;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.mp-detail-content { flex: 1; min-width: 0; }
+.mp-detail-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 1px;
+}
+.mp-detail-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a202c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mp-detail-value.muted { color: #94a3b8; font-weight: 400; font-style: italic; }
+
+/* Edit inputs inside cards */
+.mp-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'Poppins', sans-serif;
+  color: #1a202c;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  margin-top: 2px;
+}
+.mp-input:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
+.mp-input::placeholder { color: #cbd5e1; }
+
+/* Readonly input (email) */
+.mp-input-readonly {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* ── Permissions ────────────────────────────────────────────────── */
+.mp-perms {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
-  margin-top: 10px;
-  justify-content: center;
+  gap: 8px;
 }
-
-.permission-pill {
-  background: var(--gray-pill);
-  padding: 12px 25px;
-  border-radius: 12px;
-  font-size: 14px;
-  color: #444;
+.mp-perm-pill {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 11px;
   font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 99px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: background 0.2s, transform 0.15s;
 }
+.mp-perm-pill:hover { background: #dbeafe; transform: translateY(-1px); }
 
-.about-box {
-  background: var(--gray-pill);
-  padding: 25px;
-  border-radius: 15px;
-  min-height: 100px;
-  margin-top: 10px;
-}
-
-.about-box p {
-  color: #555;
+/* ── About / textarea ───────────────────────────────────────────── */
+.mp-about-text {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.7;
   font-style: italic;
-  margin: 0;
+}
+.mp-about-text.empty { color: #cbd5e1; font-style: italic; }
+
+.mp-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'Poppins', sans-serif;
+  color: #1a202c;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
   line-height: 1.6;
 }
+.mp-textarea:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
+.mp-textarea::placeholder { color: #cbd5e1; }
 
-.about-textarea {
-  width: 100%;
-  min-height: 120px;
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  padding: 15px;
-  background: white;
-  font-family: inherit;
-  resize: vertical;
-  font-size: 16px;
-  color: #333;
+/* ── Stats row (quick facts) ────────────────────────────────────── */
+.mp-stats {
+  display: flex;
+  gap: 0;
+}
+.mp-stat {
+  flex: 1;
+  text-align: center;
+  padding: 14px 8px;
+  border-right: 1px solid #f1f5f9;
+}
+.mp-stat:last-child { border-right: none; }
+.mp-stat-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a202c;
+  letter-spacing: -0.5px;
+}
+.mp-stat-value.blue { color: #2563eb; }
+.mp-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
 }
 
-/* UTILITY CLASSES */
-.font-light { font-weight: 400; color: #555; }
-.uppercase-text { text-transform: uppercase; }
+/* ── Mobile ─────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .mp-body { grid-template-columns: 1fr; }
+  .mp-body-full { grid-column: 1; }
+}
 
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 15px;
-  }
-
-  .profile-card {
-    padding: 20px;
-    border-radius: 20px;
-  }
-
-  .profile-header-row {
+@media (max-width: 640px) {
+  .mp-hero {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 20px;
+    align-items: flex-start;
+    padding: 24px 20px;
+    gap: 16px;
   }
-
-  .avatar-section {
+  .mp-hero-actions {
     width: 100%;
+    align-self: stretch;
   }
-
-  /* Reposition the camera icon for mobile */
-  .upload-icon-label {
-    margin-top: -40px;
-    margin-left: 80px; 
-  }
-
-  .details-grid {
-    grid-template-columns: 1fr; /* Stack labels and values */
-    row-gap: 5px;
-  }
-
-  .profile-name {
-    font-size: 24px;
-    margin-top: 10px;
-  }
-
-  .edit-btn {
-    width: 100%;
-  }
-
-  .permissions-list {
+  .mp-btn-edit,
+  .mp-btn-save,
+  .mp-btn-cancel {
+    flex: 1;
     justify-content: center;
   }
+  .mp-hero-name { font-size: 20px; white-space: normal; }
+  .mp-card { padding: 18px 16px; }
+  .mp-stat-value { font-size: 16px; }
 }
