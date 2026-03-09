@@ -34,13 +34,16 @@
 .proposal-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  /* Explicit height: full viewport minus the 64px topnav */
+  height: calc(100vh - 64px);
+  max-height: calc(100vh - 64px);
+  min-height: 0;
   background: var(--pp-bg);
   font-family: 'Poppins', sans-serif;
   font-size: 13px;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  overflow: hidden;      /* page never scrolls — only kanban-wrapper does */
   box-sizing: border-box;
 }
 
@@ -63,7 +66,7 @@
   margin-bottom: 14px;
   gap: 12px;
   flex-wrap: nowrap;
-  min-width: 0;
+  width: 100%;
 }
 
 .proposal-header-left {
@@ -207,16 +210,18 @@
 ═══════════════════════════════════════════ */
 .kanban-wrapper {
   flex: 1;
-  overflow-x: auto;     /* only horizontal scroll */
+  min-height: 0;
+  /* Clamp width to exactly the visible area: viewport minus sidebar */
+  width: calc(100vw - 260px);
+  max-width: calc(96vw - 260px);
+  overflow-x: auto;      /* ← horizontal scroll lives ONLY here */
   overflow-y: hidden;
   padding: 0 28px 12px;
-  width: 1010px;
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
-  height: auto;
-  padding-bottom: 10px;
   display: flex;
+  align-items: stretch;
 }
 
 .kanban-wrapper::-webkit-scrollbar { height: 6px; }
@@ -226,9 +231,9 @@
 .kanban-table {
   display: flex;
   gap: 14px;
-  width: max-content;
-  height: 100%;          /* fill kanban-wrapper so columns can fill it too */
-  align-items: stretch;  /* columns all same height */
+  width: max-content;    /* wider than viewport → scroll inside wrapper */
+  height: 100%;          /* fill kanban-wrapper height */
+  align-items: stretch;
   padding: 4px 2px 8px;
 }
 
@@ -242,10 +247,12 @@
   border: 1px solid var(--pp-border);
   display: flex;
   flex-direction: column;
-  height: 100%;             /* fill the kanban-wrapper height */
+  height: 100%;             /* fill kanban-wrapper height */
+  min-height: 0;            /* allow column to shrink so body can scroll */
   box-shadow: var(--pp-shadow-sm);
   transition: box-shadow 0.2s;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .column.drag-over {
@@ -304,8 +311,10 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
-  flex-grow: 1;
+  flex: 1;
+  min-height: 0;         /* allow body to shrink so it scrolls, not overflows */
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: #e2e8f0 transparent;
 }
@@ -953,6 +962,11 @@
     display: block;
     padding: 0 14px 24px;
     width: 100%;
+    max-width: 100%;
+  }
+  .proposal-page {
+    height: auto;
+    max-height: none;
   }
 
   .kanban-table {
