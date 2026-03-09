@@ -16,18 +16,19 @@
 .ct-page {
   display:flex;
   flex-direction:column;
-  /* Explicit height — works on every screen size regardless of parent */
   height: calc(100vh - 64px);
   max-height: calc(100vh - 64px);
   min-height: 0;
   font-family:'Poppins',sans-serif;
   font-size:13px;
   color:#1a202c;
-  overflow:hidden;          /* page never scrolls */
+  overflow:hidden;          /* page NEVER scrolls — only ct-body does */
   opacity:0;
   transition:opacity 0.25s ease;
   width:100%;
+  max-width:100%;
   box-sizing:border-box;
+  position:relative;
 }
 .ct-page.ct-ready { opacity:1; }
 
@@ -37,6 +38,7 @@
   padding:22px 28px 14px;
   width:100%;
   box-sizing:border-box;
+  background:#f0f2f7;        /* match dashboard bg so it looks fixed */
   position:relative;
   z-index:1;
 }
@@ -119,12 +121,12 @@
 .ct-clear:hover { background:#e2e8f0; }
 .ct-result-count { font-size:11px; color:#64748b; white-space:nowrap; flex-shrink:0; }
 
-/* Scrollable body — fills remaining height, scrolls vertically only */
+/* Scrollable body — fills remaining height */
 .ct-body {
   flex:1;
   min-height:0;             /* CRITICAL — lets body shrink so it scrolls */
   overflow-y:auto;
-  overflow-x:hidden;
+  overflow-x:hidden;        /* body itself doesn't scroll sideways */
   padding:0 28px 28px;
   scrollbar-width:thin;
   scrollbar-color:#cbd5e1 transparent;
@@ -135,29 +137,32 @@
 .ct-body::-webkit-scrollbar       { width:5px; }
 .ct-body::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
 
-/* Table wrap — scrolls inside itself, not the page */
+/* Table wrap — horizontal scroll lives HERE only */
 .ct-table-wrap {
   background:#fff;
   border-radius:12px;
   border:1px solid #e4e8f0;
   box-shadow:0 1px 4px rgba(0,0,0,.07);
-  overflow:hidden;
+  overflow:hidden;          /* clips the rounded corners */
   width:100%;
+  max-width:100%;
   box-sizing:border-box;
 }
 .ct-table-scroll {
-  overflow-x:auto;
+  overflow-x:auto;          /* ← horizontal scroll only here */
   overflow-y:visible;
   -webkit-overflow-scrolling:touch;
   scrollbar-width:thin;
   scrollbar-color:#e2e8f0 transparent;
   width:100%;
+  max-width:100%;
+  box-sizing:border-box;
 }
 .ct-table-scroll::-webkit-scrollbar       { height:4px; }
 .ct-table-scroll::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:2px; }
 
 /* Table — min-width so it scrolls inside ct-table-scroll on small screens */
-.ct-table { width:100%; min-width:720px; border-collapse:collapse; font-size:13px; }
+.ct-table { width:100%; min-width:860px; border-collapse:collapse; font-size:13px; table-layout:fixed; }
 .ct-table thead tr { background:#f8fafc; border-bottom:1px solid #e4e8f0; }
 .ct-table th {
   padding:11px 14px; font-size:10px; font-weight:700;
@@ -171,11 +176,11 @@
 }
 .ct-table tbody tr:last-child { border-bottom:none; }
 .ct-table tbody tr:hover      { background:#fafbff; }
-.ct-table td { padding:11px 14px; vertical-align:middle; color:#1a202c; }
+.ct-table td { padding:11px 14px; vertical-align:middle; color:#1a202c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:0; }
 .ct-table td.ct-center { text-align:center; }
 
 .ct-id { font-size:11px; color:#94a3b8; font-weight:500; }
-.ct-name-cell { display:flex; align-items:center; gap:10px; }
+.ct-name-cell { display:flex; align-items:center; gap:10px; overflow:hidden; }
 .ct-avatar {
   width:32px; height:32px; border-radius:9px;
   background:linear-gradient(135deg,#dbeafe 0%,#ede9fe 100%);
@@ -184,7 +189,7 @@
   flex-shrink:0; letter-spacing:-0.5px;
 }
 .ct-avatar.co { background:linear-gradient(135deg,#dcfce7 0%,#d1fae5 100%); color:#16a34a; }
-.ct-name-text  { font-weight:600; color:#1a202c; }
+.ct-name-text  { font-weight:600; color:#1a202c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ct-muted-cell { color:#64748b; }
 
 /* Status badges */
@@ -348,9 +353,9 @@
 
 /* ── Mobile ≤768px ── */
 @media (max-width:768px) {
-  .ct-page { height:auto; max-height:none; overflow:visible; min-height:unset; }
+  .ct-page { height:auto; max-height:none; overflow:visible; min-height:unset; width:100%; }
   .ct-top  { padding:16px 16px 12px; background:transparent; }
-  .ct-body { padding:0 16px 24px; overflow-y:visible; overflow-x:hidden; flex:unset; min-height:unset; }
+  .ct-body { padding:0 16px 24px; overflow-y:visible; overflow-x:hidden; flex:unset; min-height:unset; width:100%; box-sizing:border-box; }
 
   .ct-header       { flex-wrap:wrap; }
   .ct-header-right { width:100%; }
