@@ -211,16 +211,26 @@ const Client = ({ userRole }) => {
         <div className="ct-table-wrap">
           <div className="ct-table-scroll">
             <table className="ct-table">
+              <colgroup>
+                <col style={{ width: '52px' }} />
+                <col style={{ width: '180px' }} />
+                <col style={{ width: '160px' }} />
+                <col style={{ width: '220px' }} />
+                <col style={{ width: '130px' }} />
+                <col style={{ width: '120px' }} />
+                <col style={{ width: '160px' }} />
+                {canEdit && <col style={{ width: '60px' }} />}
+              </colgroup>
               <thead>
                 <tr>
-                  <th className="ct-center" style={{ width: 48 }}>ID</th>
-                  <th style={{ width: 180 }}>Name</th>
-                  <th style={{ width: 160 }}>Company</th>
-                  <th style={{ width: 200 }}>Email</th>
-                  <th style={{ width: 130 }}>Phone</th>
-                  <th style={{ width: 130 }}>Status</th>
-                  <th style={{ width: 150 }}>Owner</th>
-                  {canEdit && <th className="ct-center" style={{ width: 80 }}>Actions</th>}
+                  <th className="ct-center">ID</th>
+                  <th>Name</th>
+                  <th>Company</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Owner</th>
+                  {canEdit && <th className="ct-center">Actions</th>}
                 </tr>
               </thead>
               <tbody>
