@@ -9,10 +9,20 @@ const TopNav = ({ loggedInUser, onNavigate, onLogout, toggleSidebar }) => {
   const [isNotifOpen,   setIsNotifOpen]   = useState(false);
   const [isMobile,      setIsMobile]      = useState(window.innerWidth < 768);
 
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem("app_notifications");
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Per-user notification key so each account has its own notification list
+  const notifKey = `app_notifications_${loggedInUser?.id || 'guest'}`;
+
+  const [notifications, setNotifications] = useState([]);
+
+  // Re-load from localStorage whenever the logged-in user changes (fixes guest → real user issue)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(notifKey);
+      setNotifications(saved ? JSON.parse(saved) : []);
+    } catch {
+      setNotifications([]);
+    }
+  }, [notifKey]);
 
   const profileRef = useRef(null);
   const notifRef   = useRef(null);
@@ -21,7 +31,15 @@ const TopNav = ({ loggedInUser, onNavigate, onLogout, toggleSidebar }) => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
 
-    const onNewNotif = (e) => setNotifications((p) => [e.detail, ...p]);
+    const onNewNotif = (e) => {
+      const notif = e.detail;
+      // If targetRoles is set, only show to matching roles
+      if (notif.targetRoles && notif.targetRoles.length > 0) {
+        const userRole = loggedInUser?.role || '';
+        if (!notif.targetRoles.includes(userRole)) return;
+      }
+      setNotifications((p) => [notif, ...p]);
+    };
     window.addEventListener("new-notification", onNewNotif);
 
     const onClickOutside = (e) => {
@@ -38,8 +56,10 @@ const TopNav = ({ loggedInUser, onNavigate, onLogout, toggleSidebar }) => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("app_notifications", JSON.stringify(notifications));
-  }, [notifications]);
+    // Don't overwrite a real user's notifs with an empty guest list on first render
+    if (!loggedInUser?.id) return;
+    localStorage.setItem(notifKey, JSON.stringify(notifications));
+  }, [notifications, notifKey]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const markAllRead = () => setNotifications((p) => p.map((n) => ({ ...n, read: true })));
