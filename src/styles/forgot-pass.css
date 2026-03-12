@@ -10,6 +10,7 @@
 
 /* ── Page shell ─────────────────────────────────────────── */
 .fp-container {
+  min-height: 100vh;
   height: 100vh;
   width: 100%;
   position: relative;
@@ -519,20 +520,123 @@
   .fp-desc  { font-size: 0.88rem; margin: 0 auto; }
   .fp-steps { display: none; }
   .header-nav { padding: 18px 24px; }
-  .fp-card { max-width: 520px; max-height: calc(100vh - 230px); width: 100%; }
+  .fp-card {
+    max-width: 520px;
+    max-height: calc(100vh - 230px);
+    width: 100%;
+  }
   .fp-card-head { padding: 26px 28px 0; }
   .fp-card-body { padding: 16px 28px 26px; }
 }
 
-@media (max-width: 600px) {
-  .fp-title { font-size: 1.9rem; letter-spacing: -0.8px; }
-  .fp-card-title { font-size: 1.6rem; }
-  .fp-content { padding: 70px 16px 16px; gap: 14px; }
-  .fp-card { max-height: calc(100vh - 200px); border-radius: 20px; }
-  .fp-card-head { padding: 20px 20px 0; }
-  .fp-card-body { padding: 14px 20px 22px; }
-  .header-nav { padding: 14px 18px; }
-  .logo-white { height: 28px; }
-  .otp-box { height: 50px; font-size: 1.3rem; }
-  .otp-input-container { gap: 5px; }
+/* ── Mobile ≤ 768px ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Page scrolls — card body scrolls independently */
+  .fp-container {
+    height: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-items: flex-start;
+  }
+
+  .header-nav {
+    padding: 12px 16px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 20;
+    background: linear-gradient(180deg, rgba(5,8,16,0.9) 0%, transparent 100%);
+  }
+  .logo-white { height: 26px; }
+
+  .fp-content {
+    flex-direction: column;
+    align-items: center;
+    padding: 62px 14px 28px;
+    gap: 12px;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    justify-content: flex-start;
+  }
+
+  /* Branding — compact strip */
+  .fp-branding {
+    text-align: center;
+    width: 100%;
+    max-width: 100%;
+    flex-shrink: 0;
+    padding-top: 6px;
+  }
+  .branding-eyebrow {
+    justify-content: center;
+    font-size: 0.58rem;
+    margin-bottom: 5px;
+  }
+  .branding-eyebrow::before { display: none; }
+
+  .fp-title {
+    font-size: clamp(1.55rem, 8vw, 2.2rem);
+    letter-spacing: -0.5px;
+    line-height: 1.05;
+    margin-bottom: 6px;
+  }
+  .fp-desc {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0 auto;
+    color: rgba(255,255,255,0.4);
+  }
+  .fp-steps { display: none; }
+
+  /* Card */
+  .fp-card {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    flex-shrink: 0;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.07);
+  }
+
+  .fp-card-head { padding: 20px 18px 0; }
+
+  .fp-card-body {
+    padding: 14px 18px 24px;
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  .fp-card-title  { font-size: 1.65rem; letter-spacing: -0.8px; }
+  .fp-card-sub    { font-size: 0.8rem; margin-bottom: 18px; }
+  .card-label     { font-size: 0.62rem; }
+  .card-back-link { font-size: 0.7rem; margin-bottom: 12px; }
+  .fp-step-icon   { width: 38px; height: 38px; border-radius: 11px; margin-bottom: 10px; }
+
+  .fp-label  { font-size: 0.64rem; margin-top: 12px; }
+  .fp-input  { padding: 11px 13px; font-size: 0.88rem; border-radius: 10px; }
+  .fp-btn    { padding: 13px; font-size: 0.88rem; border-radius: 10px; margin-top: 14px; }
+
+  .otp-box { height: 54px; font-size: 1.5rem; border-radius: 11px; }
+  .otp-input-container { gap: 6px; margin-bottom: 2px; }
+
+  .resend-container { margin-top: 10px; }
+  .resend-text, .resend-link { font-size: 0.75rem; }
+
+  .fp-error, .error-bubble,
+  .fp-success, .fp-info { font-size: 0.78rem; padding: 9px 12px; }
+
+  .orb { display: none; }
+}
+
+/* ── Small phones ≤ 420px ───────────────────────────────── */
+@media (max-width: 420px) {
+  .fp-content { padding: 58px 11px 22px; gap: 10px; }
+  .fp-title { font-size: clamp(1.4rem, 8vw, 1.85rem); }
+  .fp-card { border-radius: 16px; }
+  .fp-card-head { padding: 16px 14px 0; }
+  .fp-card-body { padding: 12px 14px 20px; }
+  .fp-card-title { font-size: 1.5rem; }
+  .otp-box { height: 48px; font-size: 1.3rem; }
+  .otp-input-container { gap: 4px; }
 }
