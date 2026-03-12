@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, X, Trash2, FileSpreadsheet, Filter, Building2, Phone, MapPin, User, Briefcase } from 'lucide-react';
+import { Search, X, Trash2, FileSpreadsheet, Filter, Building2, Phone, MapPin, User } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import '../styles/contacts.css';
+import { sendNotification, getSocket } from '../utils/notifService';
 
 /* ── Helpers ──────────────────────────────────────────────── */
 const coInitials = (name) => {
@@ -50,7 +51,7 @@ const Company = ({ userRole }) => {
   const fetchCompanies = async () => {
     try {
       setIsLoading(true);
-      const res  = await fetch('http://localhost:5000/api/companies');
+      const res  = await fetch('http://192.168.1.16:5000/api/companies');
       const data = await res.json();
       if (data.success) setCompanies(data.companies || []);
     } catch (err) { console.error('Fetch failed:', err); }
@@ -62,6 +63,15 @@ const Company = ({ userRole }) => {
     const t = setTimeout(() => setReady(true), 80);
     return () => clearTimeout(t);
   }, []);
+
+  // ─── SOCKET: auto-refresh for all users when a company is added ──────────
+  useEffect(() => {
+    const socket = getSocket();
+    const onRefresh = () => fetchCompanies();
+    socket.on('company-added', onRefresh);
+    return () => socket.off('company-added', onRefresh);
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
     const term = searchQuery.toLowerCase().trim();
@@ -99,7 +109,7 @@ const Company = ({ userRole }) => {
         });
         const valid = mapped.filter((c) => c.company_name?.toString().trim());
         if (!valid.length) return alert('Import failed: No valid company names found.');
-        const res    = await fetch('http://localhost:5000/api/companies/bulk', {
+        const res    = await fetch('http://192.168.1.16:5000/api/companies/bulk', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ companies: valid }),
@@ -117,7 +127,7 @@ const Company = ({ userRole }) => {
     if (!canEdit) return;
     if (!window.confirm('Delete this company?')) return;
     try {
-      const res  = await fetch(`http://localhost:5000/api/companies/${id}`, { method: 'DELETE' });
+      const res  = await fetch(`http://192.168.1.16:5000/api/companies/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) fetchCompanies();
     } catch (err) { console.error('Delete error:', err); }
@@ -133,13 +143,31 @@ const Company = ({ userRole }) => {
     e.preventDefault();
     if (!canEdit) return;
     try {
-      const res  = await fetch('http://localhost:5000/api/companies', {
+      const res  = await fetch('http://192.168.1.16:5000/api/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
       const data = await res.json();
-      if (data.success) { await fetchCompanies(); toggleModal(); }
+      if (data.success) {
+        const addedBy = JSON.parse(localStorage.getItem('loggedInUser'))?.name || 'Someone';
+        // Local notif for the creator
+        sendNotification(`🏢 New company added: "${formData.name}"${formData.industry ? ` · ${formData.industry}` : ''}`);
+        // Broadcast to all other users
+        await fetch('http://192.168.1.16:5000/api/projects/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'company-added',
+            companyName: formData.name,
+            industry: formData.industry || '',
+            addedBy,
+            changedBy: addedBy,
+          }),
+        });
+        await fetchCompanies();
+        toggleModal();
+      }
     } catch (err) { console.error('Submission error:', err); }
   };
 
@@ -217,7 +245,6 @@ const Company = ({ userRole }) => {
             <table className="ct-table">
               <thead>
                 <tr>
-                  <th className="ct-center" style={{ width: 48 }}>ID</th>
                   <th>Company</th>
                   <th>Owner</th>
                   <th>Industry</th>
@@ -228,16 +255,15 @@ const Company = ({ userRole }) => {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={canEdit ? 7 : 6}>
+                  <tr><td colSpan={canEdit ? 6 : 5}>
                     <div className="ct-loading"><div className="ct-spinner" /><span>Loading companies…</span></div>
                   </td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={canEdit ? 7 : 6}>
+                  <tr><td colSpan={canEdit ? 6 : 5}>
                     <div className="ct-empty"><Building2 size={34} /><p>No companies found</p></div>
                   </td></tr>
                 ) : filtered.map((co, i) => (
                   <tr key={co.record_id} style={{ animationDelay: `${i * 14}ms` }}>
-                    <td className="ct-center ct-id">{co.record_id}</td>
                     <td>
                       <div className="ct-name-cell">
                         <div className="ct-avatar co">{coInitials(co.name)}</div>
@@ -294,9 +320,6 @@ const Company = ({ userRole }) => {
               </div>
 
               <div className="ct-card-foot">
-                <span className="ct-card-row" style={{ fontSize: 11 }}>
-                  <Briefcase size={11} /> ID {co.record_id}
-                </span>
                 {canEdit && (
                   <button className="ct-del" onClick={() => handleDelete(co.record_id)}>
                     <Trash2 size={14} />
