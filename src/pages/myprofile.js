@@ -36,7 +36,7 @@ const MyProfile = ({ user, onProfileUpdate }) => {
     const fetch = async () => {
       if (!user?.id) return;
       try {
-        const res = await axios.get(`http://localhost:5000/api/users/${user.id}`);
+        const res = await axios.get(`http://192.168.1.16:5000/api/users/${user.id}`);
         if (res.data.success) {
           const u = res.data.user;
           setProfileData({ name: u.name||"", phone: u.phone||"", about: u.about||"", avatar: u.avatar||"" });
@@ -70,7 +70,7 @@ const MyProfile = ({ user, onProfileUpdate }) => {
   /* ── Save ───────────────────────────────────────────── */
   const handleSave = async () => {
     try {
-      const res = await axios.put(`http://localhost:5000/api/users/${user.id}/profile`, {
+      const res = await axios.put(`http://192.168.1.16:5000/api/users/${user.id}/profile`, {
         name:   draft.name,
         phone:  draft.phone,
         about:  draft.about,
