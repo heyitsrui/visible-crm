@@ -37,7 +37,6 @@ import {
 } from "lucide-react";
 
 import "../styles/dashboard.css";
-import { initSocketNotifications } from "../utils/notifService";
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -168,6 +167,7 @@ const DashboardOverview = ({ stats, tasks }) => {
           <div>
             <p className="db-money-label">Total Paid</p>
             <p className="db-money-value">₱{(Number(stats?.totalPaid) || 0).toLocaleString()}</p>
+            <p style={{ fontSize: 10, color: "#16a34a", opacity: 0.75, marginTop: 2, fontWeight: 500, letterSpacing: "0.02em" }}>Purchase Order · Completed</p>
           </div>
           <div className="db-money-badge db-money-badge--green">Collected</div>
         </div>
@@ -178,6 +178,7 @@ const DashboardOverview = ({ stats, tasks }) => {
           <div>
             <p className="db-money-label">Total Due</p>
             <p className="db-money-value">₱{(Number(stats?.totalDue) || 0).toLocaleString()}</p>
+            <p style={{ fontSize: 10, color: "#dc2626", opacity: 0.75, marginTop: 2, fontWeight: 500, letterSpacing: "0.02em" }}>Lead · Proposal · Site Survey · Renewal</p>
           </div>
           <div className="db-money-badge db-money-badge--red">Outstanding</div>
         </div>
@@ -200,8 +201,6 @@ const DashboardOverview = ({ stats, tasks }) => {
             />
             {!isMobile && (
               <div className="db-chart-center">
-                <span className="db-chart-center-val">{totalProjects}</span>
-                <span className="db-chart-center-lbl">Projects</span>
               </div>
             )}
           </div>
@@ -271,13 +270,8 @@ export default function Dashboard() {
     const user = JSON.parse(localStorage.getItem("loggedInUser"));
     if (!user) 
       navigate("/");
-    else {
-      setLoggedInUser(user);
-      // ── Init socket notifications ONCE here at the root level ──────────────
-      // This ensures ALL real-time notifications work regardless of which
-      // page the user is currently viewing (proposal, bom, projects, etc.)
-      initSocketNotifications(user);
-    }
+    else 
+      setLoggedInUser(user); 
   }, [navigate]);
 
   useEffect(() => {
@@ -287,7 +281,32 @@ export default function Dashboard() {
       try {
         const statsRes = await fetch("http://192.168.1.16:5000/api/dashboard-stats");
         const statsData = await statsRes.json();
-        if (statsData.success) setStats(statsData.stats);
+
+        // Also fetch finance data to compute correct totals by status
+        const finRes = await fetch("http://192.168.1.16:5000/api/finance/projects");
+        const finData = await finRes.json();
+
+        if (statsData.success) {
+          let totalPaid = 0;
+          let totalDue  = 0;
+
+          if (finData.success && finData.projects) {
+            const PAID_STATUSES = ['Purchase Order', 'Completed Project'];
+            const DUE_STATUSES  = ['Lead', 'For Proposal', 'Proposal', 'Site Survey-POC', 'Renewal Support'];
+
+            finData.projects.forEach(p => {
+              const amt = Number(p.total_amount || 0);
+              if (PAID_STATUSES.includes(p.status))      totalPaid += amt;
+              else if (DUE_STATUSES.includes(p.status))  totalDue  += amt;
+            });
+          } else {
+            // fallback to API-provided values
+            totalPaid = Number(statsData.stats?.totalPaid || 0);
+            totalDue  = Number(statsData.stats?.totalDue  || 0);
+          }
+
+          setStats({ ...statsData.stats, totalPaid, totalDue });
+        }
 
         const taskRes = await fetch("http://192.168.1.16:5000/api/tasks");
         const taskData = await taskRes.json();
@@ -329,7 +348,7 @@ export default function Dashboard() {
       case 3: 
         return <Finance loggedInUser={loggedInUser?.role} />;
       case 4: 
-        return <BOM loggedInUser={loggedInUser} />;
+        return <BOM loggedInUser={loggedInUser?.role} />;
       case 'clients':
         return <Client userRole={loggedInUser?.role} />;
       case 'company':
@@ -384,7 +403,6 @@ export default function Dashboard() {
         activeIndex={activeIndex} 
         setActiveIndex={setActiveIndex} 
         onLogout={handleLogout}
-        onClose={() => setIsSidebarOpen(false)}
         currentUser={loggedInUser}
       />
       
