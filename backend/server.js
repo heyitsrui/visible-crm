@@ -1,4 +1,6 @@
 require("dotenv").config();
+  const http = require("http");
+  const { Server } = require("socket.io");
   const express = require("express");
   const nodemailer = require("nodemailer");
   const otpGenerator = require("otp-generator");
@@ -13,6 +15,8 @@ require("dotenv").config();
   const Docxtemplater = require("docxtemplater");
 
   const app = express();
+  const httpServer = http.createServer(app);
+  const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET","POST"] } });
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ extended: true, limit: "50mb" }));
   app.use(cors());
@@ -42,7 +46,7 @@ require("dotenv").config();
   const pool = mariadb.createPool({
     host: process.env.DB_HOST || "localhost",
     user: process.env.DB_USER || "root",
-    password: process.env.DB_PASS || "ritzqt",
+    password: process.env.DB_PASS || "visible@2026",
     database: process.env.DB_NAME || "crm",
     dateStrings: true,
     connectionLimit: 5,
@@ -448,14 +452,39 @@ app.put("/api/projects/:id", async (req, res) => {
 });
 
 app.put("/api/projects/:id/status", async (req, res) => {
-  const { status } = req.body;
+  const { status, dealName, changedBy } = req.body;
   const { id } = req.params;
   try {
     await queryDB("UPDATE projects SET status=? WHERE id=?", [status, id]);
+
+    // Always fetch deal_name from DB to guarantee it is never undefined
+    const rows = await queryDB("SELECT deal_name FROM projects WHERE id=?", [id]);
+    const resolvedName = rows[0]?.deal_name || dealName || "Unknown Deal";
+
+    io.emit("deal-status-changed", {
+      id: Number(id),
+      status,
+      dealName: resolvedName,
+      changedBy: changedBy || "Admin",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    });
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+
+// Broadcast deal-created / deal-updated events to all clients
+app.post("/api/projects/notify", (req, res) => {
+  const { event, ...payload } = req.body;
+  // Spread all payload fields so any event type works (comments, attachments, status, etc.)
+  io.emit(event, {
+    ...payload,
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  });
+  res.json({ success: true });
 });
 
 app.delete("/api/projects/:id", async (req, res) => {
@@ -537,10 +566,13 @@ app.post("/api/projects/bulk", async (req, res) => {
     const { first_name, last_name, email, phone, contact_owner, assoc_company, lead_status } = req.body;
     
     try {
+      const maxRes = await queryDB("SELECT COALESCE(MAX(record_id), 0) + 1 AS next_id FROM clients");
+      const record_id = Number(maxRes[0].next_id);
+
       await queryDB(
-        `INSERT INTO clients (first_name, last_name, email, phone, contact_owner, assoc_company, lead_status) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [first_name, last_name, email, phone || null, contact_owner || null, assoc_company || null, lead_status || 'New']
+        `INSERT INTO clients (record_id, first_name, last_name, email, phone, contact_owner, assoc_company, lead_status) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [record_id, first_name, last_name, email, phone || null, contact_owner || null, assoc_company || null, lead_status || 'New']
       );
       res.json({ success: true, message: "Client added successfully" });
     } catch (err) {
@@ -605,7 +637,12 @@ app.post('/api/clients/bulk', async (req, res) => {
   // TASKS API
   app.get("/api/tasks", async (req, res) => {
     try {
-      const tasks = await queryDB("SELECT * FROM tasks ORDER BY created_at DESC");
+      const tasks = await queryDB(`
+        SELECT t.*, u.name AS user_name
+        FROM tasks t
+        LEFT JOIN users u ON u.id = t.user_id
+        ORDER BY t.created_at DESC
+      `);
       res.json({ success: true, tasks });
     } catch (err) {
       console.error("Fetch Tasks Error:", err);
@@ -1119,50 +1156,31 @@ app.post("/generate-document", (req, res) => {
 });
 
 // ================================================================
-// =================== BOM MODULE ROUTES ==========================
-// ================================================================
-// Paste this entire block into your server.js, just before the
-// last two lines:
-//   const PORT = process.env.PORT || 5000;
-//   app.listen(PORT, () => console.log(...));
-//
-// NOTE: No extra imports needed — you already have everything.
-// Your frontend must send { userId, userRole } in the request
-// body (POST/PATCH) or as query params (GET) so the server knows
-// who is making the call (matching your existing auth pattern).
+// BOM MODULE ROUTES
 // ================================================================
 
-// ── Helper: map product_category → frontend categoryKey ─────────
 function getBomCategoryKey(productCategory) {
   if (!productCategory) return 'OTHER';
   const c = productCategory.toLowerCase();
-  // Ruijie
   if (c.includes('router'))                               return 'ROUTER';
   if (c.includes('wireless') || c.includes('/ ap'))      return 'ACCESS_POINT';
   if (c.includes('access controller'))                    return 'ACCESS_POINT';
   if (c.includes('firewall') || c.includes('security'))  return 'FIREWALL';
   if (c.includes('software'))                             return 'SOFTWARE';
   if (c.includes('accessory'))                            return 'ACCESSORY';
-  // Sundray
   if (c.includes('access point') || c.includes('ap'))    return 'ACCESS_POINT';
   if (c.includes('gateway'))                              return 'ROUTER';
   if (c.includes('management'))                           return 'SOFTWARE';
   if (c.includes('x-link'))                               return 'OTHER';
-  // shared
   if (c.includes('switch'))                               return 'SWITCHES';
   return 'OTHER';
 }
 
-// ================================================================
 // PRODUCTS
-// ================================================================
-
-// GET /api/bom/products
-// Query params: vendor, category, subcategory, search
 app.get('/api/bom/products', async (req, res) => {
   const { vendor = 'ruijie', category, subcategory, search } = req.query;
   try {
-    let sql    = 'SELECT * FROM bom_products WHERE vendor = ?';
+    let sql = 'SELECT * FROM bom_products WHERE vendor = ?';
     const params = [vendor];
 
     if (category && category !== 'ALL') {
@@ -1193,16 +1211,15 @@ app.get('/api/bom/products', async (req, res) => {
     }
 
     sql += ' ORDER BY product_category, sub_category, model';
-
     const rows = await queryDB(sql, params);
     const products = rows.map(p => ({
       ...p,
       tag_dc:         Number(p.tag_dc),
       tag_enterprise: Number(p.tag_enterprise),
       tag_sme:        Number(p.tag_sme),
+      market_price:   p.market_price ? Number(p.market_price) : 0,
       categoryKey:    getBomCategoryKey(p.product_category),
     }));
-
     res.json({ success: true, products });
   } catch (err) {
     console.error('GET /api/bom/products error:', err);
@@ -1210,18 +1227,13 @@ app.get('/api/bom/products', async (req, res) => {
   }
 });
 
-// GET /api/bom/products/categories
-// Returns distinct category → subcategory tree for filter pills
 app.get('/api/bom/products/categories', async (req, res) => {
   const { vendor = 'ruijie' } = req.query;
   try {
     const rows = await queryDB(
-      `SELECT DISTINCT product_category, sub_category
-       FROM bom_products WHERE vendor = ?
-       ORDER BY product_category, sub_category`,
+      `SELECT DISTINCT product_category, sub_category FROM bom_products WHERE vendor = ? ORDER BY product_category, sub_category`,
       [vendor]
     );
-
     const tree = {};
     for (const row of rows) {
       const key = getBomCategoryKey(row.product_category);
@@ -1232,35 +1244,10 @@ app.get('/api/bom/products/categories', async (req, res) => {
     }
     res.json({ success: true, categories: tree });
   } catch (err) {
-    console.error('GET /api/bom/products/categories error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// =============================================================================
-// BOM API ROUTES — paste these into your server.js before the app.listen() line
-// =============================================================================
-
-// ─── GET all products (filterable by vendor) ─────────────────────────────────
-app.get('/api/bom/products', async (req, res) => {
-  try {
-    const { vendor } = req.query;
-    let sql = 'SELECT * FROM bom_products';
-    const params = [];
-    if (vendor) {
-      sql += ' WHERE vendor = ?';
-      params.push(vendor);
-    }
-    sql += ' ORDER BY segment, product_category, sub_category, model';
-    const rows = await queryDB(sql, params);
-    res.json({ success: true, products: rows });
-  } catch (err) {
-    console.error('BOM Products GET error:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ─── POST import products (bulk upsert) ──────────────────────────────────────
 app.post('/api/bom/products/import', async (req, res) => {
   const { products, vendor } = req.body;
   if (!products || !products.length) {
@@ -1270,21 +1257,22 @@ app.post('/api/bom/products/import', async (req, res) => {
   try {
     conn = await pool.getConnection();
     const sql = `
-      INSERT INTO bom_products 
-        (model, vendor, segment, product_category, sub_category, wireless_standard, deployment, management_type, poe, tag_dc, tag_enterprise, tag_sme, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO bom_products
+        (model, vendor, segment, product_category, sub_category, wireless_standard, deployment, management_type, poe, tag_dc, tag_enterprise, tag_sme, notes, market_price)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
-        segment = VALUES(segment),
+        segment          = VALUES(segment),
         product_category = VALUES(product_category),
-        sub_category = VALUES(sub_category),
+        sub_category     = VALUES(sub_category),
         wireless_standard = VALUES(wireless_standard),
-        deployment = VALUES(deployment),
-        management_type = VALUES(management_type),
-        poe = VALUES(poe),
-        tag_dc = VALUES(tag_dc),
-        tag_enterprise = VALUES(tag_enterprise),
-        tag_sme = VALUES(tag_sme),
-        notes = VALUES(notes)
+        deployment       = VALUES(deployment),
+        management_type  = VALUES(management_type),
+        poe              = VALUES(poe),
+        tag_dc           = VALUES(tag_dc),
+        tag_enterprise   = VALUES(tag_enterprise),
+        tag_sme          = VALUES(tag_sme),
+        notes            = VALUES(notes),
+        market_price     = VALUES(market_price)
     `;
     const values = products.map(p => [
       p.model,
@@ -1292,7 +1280,7 @@ app.post('/api/bom/products/import', async (req, res) => {
       p.segment || '',
       p.product_category || '',
       p.sub_category || '',
-      p.wireless_standard || '',
+      (p.wireless_standard || '').substring(0, 191),
       p.deployment || '',
       p.management_type || '',
       p.poe || '',
@@ -1300,6 +1288,7 @@ app.post('/api/bom/products/import', async (req, res) => {
       p.tag_enterprise ? 1 : 0,
       p.tag_sme ? 1 : 0,
       p.notes || '',
+      parseFloat(p.market_price) || 0,
     ]);
     const result = await conn.batch(sql, values);
     res.json({ success: true, count: result.affectedRows });
@@ -1311,7 +1300,21 @@ app.post('/api/bom/products/import', async (req, res) => {
   }
 });
 
-// ─── DELETE a product ─────────────────────────────────────────────────────────
+// Update market price for a single product (admin only)
+app.put('/api/bom/products/:id/market-price', async (req, res) => {
+  const { market_price } = req.body;
+  try {
+    await queryDB(
+      'UPDATE bom_products SET market_price = ? WHERE id = ?',
+      [parseFloat(market_price) || 0, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('BOM market price update error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.delete('/api/bom/products/:id', async (req, res) => {
   try {
     await queryDB('DELETE FROM bom_products WHERE id = ?', [req.params.id]);
@@ -1321,66 +1324,81 @@ app.delete('/api/bom/products/:id', async (req, res) => {
   }
 });
 
-// ─── GET all BOM drafts ───────────────────────────────────────────────────────
+// DRAFTS
+
+// ── BOM real-time broadcast endpoint ─────────────────────────────────────────
+// targetRoles: null/undefined = everyone, array = only those roles
+app.post('/api/bom/notify', (req, res) => {
+  const { event, draftName, changedBy, reason, targetRoles } = req.body;
+  io.emit(event, {
+    draftName: draftName || 'Unknown BOM',
+    changedBy: changedBy || 'Someone',
+    reason: reason || '',
+    targetRoles: targetRoles || null,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  });
+  res.json({ success: true });
+});
+
 app.get('/api/bom/drafts', async (req, res) => {
   try {
     const drafts = await queryDB(`
-      SELECT d.*, COUNT(di.id) AS item_count
+      SELECT d.*, COUNT(di.id) AS item_count, u.name AS created_by_name
       FROM bom_drafts d
       LEFT JOIN bom_draft_items di ON di.draft_id = d.id
+      LEFT JOIN users u ON u.id = d.created_by
       GROUP BY d.id
       ORDER BY d.saved_at DESC
     `);
     res.json({ success: true, drafts });
   } catch (err) {
-    console.error('BOM Drafts GET error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ─── GET single draft with items ─────────────────────────────────────────────
 app.get('/api/bom/drafts/:id', async (req, res) => {
   try {
     const [draft] = await queryDB('SELECT * FROM bom_drafts WHERE id = ?', [req.params.id]);
     if (!draft) return res.status(404).json({ success: false, error: 'Draft not found' });
 
     const items = await queryDB(`
-      SELECT di.id, di.draft_id, di.qty,
-        di.note,
+      SELECT di.id, di.draft_id, di.qty, di.note, di.unit_price,
         COALESCE(bp.model, di.model) AS model,
         COALESCE(bp.vendor, di.vendor) AS vendor,
-        bp.segment, bp.product_category, bp.sub_category, bp.poe, bp.wireless_standard
+        bp.segment, bp.product_category, bp.sub_category, bp.poe, bp.wireless_standard,
+        COALESCE(bp.market_price, 0) AS market_price
       FROM bom_draft_items di
       LEFT JOIN bom_products bp ON bp.id = di.product_id
       WHERE di.draft_id = ?
     `, [req.params.id]);
 
-    res.json({ success: true, draft, items });
+    // Cast numeric fields
+    const mapped = items.map(it => ({
+      ...it,
+      unit_price:   it.unit_price   ? Number(it.unit_price)   : null,
+      market_price: it.market_price ? Number(it.market_price) : 0,
+    }));
+
+    res.json({ success: true, draft, items: mapped });
   } catch (err) {
-    console.error('BOM Draft load error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ─── POST create/update a draft (upsert) ─────────────────────────────────────
 app.post('/api/bom/drafts', async (req, res) => {
   const { id, name, vendor, items, status, created_by } = req.body;
   let conn;
   try {
     conn = await pool.getConnection();
-
     let draftId = id;
 
     if (id) {
-      // Update existing draft
       await conn.query(
         'UPDATE bom_drafts SET name = ?, vendor = ?, status = ?, saved_at = NOW() WHERE id = ?',
         [name, vendor || 'ruijie', status || 'draft', id]
       );
-      // Clear old items
       await conn.query('DELETE FROM bom_draft_items WHERE draft_id = ?', [id]);
     } else {
-      // Create new draft
       const result = await conn.query(
         'INSERT INTO bom_drafts (name, vendor, status, created_by, saved_at) VALUES (?, ?, ?, ?, NOW())',
         [name, vendor || 'ruijie', status || 'draft', created_by || null]
@@ -1388,10 +1406,12 @@ app.post('/api/bom/drafts', async (req, res) => {
       draftId = result.insertId.toString();
     }
 
-    // Insert items
     if (items && items.length > 0) {
-      const itemSql = 'INSERT INTO bom_draft_items (draft_id, product_id, model, vendor, qty, note) VALUES (?, ?, ?, ?, ?, ?)';
-      const itemValues = items.map(i => [draftId, i.product_id || null, i.model, i.vendor || vendor, i.qty || 1, i.note || '']);
+      const itemSql = 'INSERT INTO bom_draft_items (draft_id, product_id, model, vendor, qty, note, unit_price) VALUES (?, ?, ?, ?, ?, ?, ?)';
+      const itemValues = items.map(i => [
+        draftId, i.product_id || null, i.model,
+        i.vendor || vendor, i.qty || 1, i.note || '', i.unit_price || null
+      ]);
       await conn.batch(itemSql, itemValues);
     }
 
@@ -1404,7 +1424,16 @@ app.post('/api/bom/drafts', async (req, res) => {
   }
 });
 
-// ─── PUT move draft to Pricing ───────────────────────────────────────────────
+app.put('/api/bom/drafts/:id/notes', async (req, res) => {
+  const { notes } = req.body;
+  try {
+    await queryDB('UPDATE bom_drafts SET notes = ? WHERE id = ?', [notes || '', req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.put('/api/bom/drafts/:id/forward', async (req, res) => {
   try {
     await queryDB(
@@ -1413,38 +1442,173 @@ app.put('/api/bom/drafts/:id/forward', async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    console.error('BOM Move to Pricing error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ─── PUT update draft status (move back to draft) ─────────────────────────────
 app.put('/api/bom/drafts/:id/status', async (req, res) => {
   const { status } = req.body;
-  if (!['draft', 'pricing'].includes(status)) {
+  if (!['draft', 'pricing', 'approved', 'rejected'].includes(status)) {
     return res.status(400).json({ success: false, error: 'Invalid status.' });
   }
   try {
     await queryDB('UPDATE bom_drafts SET status = ? WHERE id = ?', [status, req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    console.error('BOM Status update error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ─── DELETE a draft ───────────────────────────────────────────────────────────
 app.delete('/api/bom/drafts/:id', async (req, res) => {
   try {
     await queryDB('DELETE FROM bom_draft_items WHERE draft_id = ?', [req.params.id]);
     await queryDB('DELETE FROM bom_drafts WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    console.error('BOM Draft delete error:', err);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Save pricing (unit_price per item)
+app.put('/api/bom/drafts/:id/pricing', async (req, res) => {
+  const { items } = req.body;
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    for (const item of items) {
+      await conn.query(
+        'UPDATE bom_draft_items SET unit_price = ?, note = ? WHERE id = ?',
+        [item.unit_price || 0, item.note || '', item.id]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('BOM Pricing save error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+// Admin: Approve → generate PO docx
+app.post('/api/bom/drafts/:id/approve', async (req, res) => {
+  const { userRole, company_name, company_address, contact_person, designation, salesrep_name, contact_number, email } = req.body;
+  if (userRole !== 'admin') return res.status(403).json({ success: false, error: 'Forbidden' });
+
+  try {
+    const [draft] = await queryDB('SELECT * FROM bom_drafts WHERE id = ?', [req.params.id]);
+    if (!draft) return res.status(404).json({ success: false, error: 'Draft not found' });
+
+    const dbItems = await queryDB(`
+      SELECT di.id, di.draft_id, di.product_id, di.qty, di.unit_price, di.note,
+             COALESCE(bp.model, di.model) AS model, bp.product_category,
+             COALESCE(bp.market_price, 0) AS market_price
+      FROM bom_draft_items di
+      LEFT JOIN bom_products bp ON bp.id = di.product_id
+      WHERE di.draft_id = ?
+    `, [req.params.id]);
+
+    const gross = dbItems.reduce((sum, it) => sum + ((it.unit_price || 0) * it.qty), 0);
+    const poNumber = `PO-${Date.now()}`;
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const templatePath = path.join(__dirname, 'templates', 'PO_Template.docx');
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      nullGetter(part) {
+        if (!part.module) return '';
+        if (part.module === 'rawxml') return '';
+        return '';
+      },
+    });
+
+    doc.setData({
+      date:            today,
+      company_name:    company_name    || '',
+      company_address: company_address || '',
+      contact_person:  contact_person  || '',
+      designation:     designation     || '',
+      contact_number:  contact_number  || '',
+      salesrep_name:   salesrep_name   || '',
+      email:           email           || '',
+      gross:           gross.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+
+      items: dbItems.map((item, idx) => {
+        const unitPrice = item.unit_price || 0;
+        const amount    = unitPrice * item.qty;
+        return {
+          item_no:          String(idx + 1),
+          product_model:    item.model || '',
+          product_category: item.product_category || '',
+          unit:             'pcs',
+          quantity:         String(item.qty),
+          price:            unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+          amount:           amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        };
+      }),
+    });
+
+    doc.render();
+
+    const outputDir = path.join(__dirname, 'po_files');
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
+    const fileName = `PO_${poNumber}.docx`;
+    const buf = doc.getZip().generate({ type: 'nodebuffer' });
+    fs.writeFileSync(path.join(outputDir, fileName), buf);
+
+    await queryDB(
+      'UPDATE bom_drafts SET status = ?, po_number = ?, po_file = ?, approved_at = NOW() WHERE id = ?',
+      ['approved', poNumber, fileName, req.params.id]
+    );
+
+    res.json({ success: true, poNumber, fileName });
+  } catch (err) {
+    if (err.properties && Array.isArray(err.properties.errors)) {
+      console.error('BOM Approve MultiError — broken tags in PO_Template.docx:');
+      err.properties.errors.forEach((e, i) => {
+        console.error(`  [${i + 1}]`, e.message, '→', JSON.stringify(e.properties));
+      });
+    } else {
+      console.error('BOM Approve error:', err);
+    }
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      details: err.properties?.errors?.map(e => e.message) || [],
+    });
+  }
+});
+
+// Admin: Reject → back to draft with reason
+app.post('/api/bom/drafts/:id/reject', async (req, res) => {
+  const { userRole, reject_reason } = req.body;
+  if (userRole !== 'admin') return res.status(403).json({ success: false, error: 'Forbidden' });
+  try {
+    await queryDB(
+      'UPDATE bom_drafts SET status = ?, reject_reason = ?, rejected_at = NOW() WHERE id = ?',
+      ['rejected', reject_reason || '', req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Download PO file
+app.get('/api/bom/drafts/:id/po-download', async (req, res) => {
+  try {
+    const [draft] = await queryDB('SELECT po_file, po_number FROM bom_drafts WHERE id = ?', [req.params.id]);
+    if (!draft || !draft.po_file) return res.status(404).json({ error: 'PO file not found' });
+    const filePath = path.join(__dirname, 'po_files', draft.po_file);
+    res.download(filePath, draft.po_file);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
   // SERVER
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  httpServer.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
