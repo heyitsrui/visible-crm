@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 
 import "../styles/dashboard.css";
+import { initSocketNotifications } from "../utils/notifService";
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -270,8 +271,13 @@ export default function Dashboard() {
     const user = JSON.parse(localStorage.getItem("loggedInUser"));
     if (!user) 
       navigate("/");
-    else 
-      setLoggedInUser(user); 
+    else {
+      setLoggedInUser(user);
+      // ── Init socket notifications ONCE here at the root level ──────────────
+      // This ensures ALL real-time notifications work regardless of which
+      // page the user is currently viewing (proposal, bom, projects, etc.)
+      initSocketNotifications(user);
+    }
   }, [navigate]);
 
   useEffect(() => {
@@ -279,11 +285,11 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const statsRes = await fetch("http://localhost:5000/api/dashboard-stats");
+        const statsRes = await fetch("http://192.168.1.16:5000/api/dashboard-stats");
         const statsData = await statsRes.json();
         if (statsData.success) setStats(statsData.stats);
 
-        const taskRes = await fetch("http://localhost:5000/api/tasks");
+        const taskRes = await fetch("http://192.168.1.16:5000/api/tasks");
         const taskData = await taskRes.json();
         
         if (taskData.success) {
@@ -323,7 +329,7 @@ export default function Dashboard() {
       case 3: 
         return <Finance loggedInUser={loggedInUser?.role} />;
       case 4: 
-        return <BOM loggedInUser={loggedInUser?.role} />;
+        return <BOM loggedInUser={loggedInUser} />;
       case 'clients':
         return <Client userRole={loggedInUser?.role} />;
       case 'company':
@@ -378,6 +384,7 @@ export default function Dashboard() {
         activeIndex={activeIndex} 
         setActiveIndex={setActiveIndex} 
         onLogout={handleLogout}
+        onClose={() => setIsSidebarOpen(false)}
         currentUser={loggedInUser}
       />
       
