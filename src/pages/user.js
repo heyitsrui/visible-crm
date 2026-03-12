@@ -34,7 +34,7 @@ export default function UserManagement({ currentUser }) {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const res  = await fetch("http://localhost:5000/api/users");
+      const res  = await fetch("http://192.168.1.16:5000/api/users");
       const data = await res.json();
       if (data.success)
         setUsers(data.users.sort((a, b) => a.id - b.id));
@@ -82,7 +82,7 @@ export default function UserManagement({ currentUser }) {
   /* ── Submit ───────────────────────────────────────────── */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const url    = editingId ? `http://localhost:5000/api/users/${editingId}/profile` : "http://localhost:5000/register";
+    const url    = editingId ? `http://192.168.1.16:5000/api/users/${editingId}/profile` : "http://192.168.1.16:5000/register";
     const method = editingId ? "PUT" : "POST";
     try {
       const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
@@ -96,7 +96,7 @@ export default function UserManagement({ currentUser }) {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this user?")) return;
     try {
-      const res  = await fetch(`http://localhost:5000/api/users/${id}`, { method: "DELETE" });
+      const res  = await fetch(`http://192.168.1.16:5000/api/users/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) fetchUsers();
     } catch (err) { console.error(err); }
@@ -158,7 +158,6 @@ export default function UserManagement({ currentUser }) {
             <table className="ct-table">
               <thead>
                 <tr>
-                  <th className="ct-center" style={{ width: 48 }}>ID</th>
                   <th style={{ width: 200 }}>Name</th>
                   <th style={{ width: 220 }}>Email</th>
                   <th style={{ width: 140 }}>Phone</th>
@@ -168,16 +167,15 @@ export default function UserManagement({ currentUser }) {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={isAdmin ? 6 : 5}>
+                  <tr><td colSpan={isAdmin ? 5 : 4}>
                     <div className="ct-loading"><div className="ct-spinner" /><span>Loading users…</span></div>
                   </td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 6 : 5}>
+                  <tr><td colSpan={isAdmin ? 5 : 4}>
                     <div className="ct-empty"><Users size={34} /><p>No users found</p></div>
                   </td></tr>
                 ) : filtered.map((user, i) => (
                   <tr key={user.id} style={{ animationDelay: `${i * 14}ms` }}>
-                    <td className="ct-center ct-id">{user.id}</td>
                     <td>
                       <div className="ct-name-cell">
                         <div className="ct-avatar usr">{userInitials(user.name)}</div>
@@ -223,7 +221,6 @@ export default function UserManagement({ currentUser }) {
                   <div className="ct-avatar usr">{userInitials(user.name)}</div>
                   <div>
                     <div className="ct-card-name">{user.name}</div>
-                    <div className="ct-card-sub">ID {user.id}</div>
                   </div>
                 </div>
                 <RoleBadge role={user.role} />
