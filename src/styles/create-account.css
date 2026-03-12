@@ -10,6 +10,7 @@
 
 /* ── Page shell ─────────────────────────────────────────── */
 .login-container {
+  min-height: 100vh;
   height: 100vh;
   width: 100%;
   position: relative;
@@ -499,4 +500,153 @@
 @media (max-width: 480px) {
   .otp-box { height: 52px; font-size: 1.4rem; border-radius: 10px; }
   .otp-input-container { gap: 5px; }
+}
+/* ── Tablet ≤ 1100px ────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .content-wrapper {
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 5% 32px;
+    gap: 24px;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .branding-box {
+    text-align: center;
+    max-width: 600px;
+    flex-shrink: 0;
+  }
+  .branding-eyebrow { justify-content: center; }
+  .branding-eyebrow::before { display: none; }
+  .main-title { font-size: 2.8rem; letter-spacing: -1.2px; margin-bottom: 12px; }
+  .sub-text { font-size: 0.9rem; margin: 0 auto 10px; }
+  .reg-steps { display: none; }
+  .header-nav { padding: 18px 24px; }
+  .register-card {
+    max-width: 520px;
+    max-height: calc(100vh - 220px);
+    width: 100%;
+  }
+}
+
+/* ── Mobile ≤ 768px ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Let the whole page scroll — card stays fixed-height with inner scroll */
+  .login-container {
+    height: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-items: flex-start;
+  }
+
+  .header-nav {
+    padding: 12px 16px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 20;
+    background: linear-gradient(180deg, rgba(5,8,16,0.9) 0%, transparent 100%);
+  }
+  .logo-white { height: 26px; }
+
+  .content-wrapper {
+    flex-direction: column;
+    align-items: center;
+    padding: 62px 14px 28px;
+    gap: 12px;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    justify-content: flex-start;
+  }
+
+  /* Branding — very compact strip */
+  .branding-box {
+    text-align: center;
+    width: 100%;
+    max-width: 100%;
+    padding-top: 6px;
+  }
+  .branding-eyebrow {
+    justify-content: center;
+    font-size: 0.58rem;
+    margin-bottom: 5px;
+  }
+  .branding-eyebrow::before { display: none; }
+
+  .main-title {
+    font-size: clamp(1.55rem, 8vw, 2.2rem);
+    letter-spacing: -0.5px;
+    line-height: 1.05;
+    margin-bottom: 6px;
+  }
+  .sub-text {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0 auto 6px;
+    color: rgba(255,255,255,0.4);
+  }
+  .reg-steps { display: none; }
+
+  /* Card: fills remaining viewport height with inner scroll */
+  .register-card {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    /* Enough room to show the card comfortably without inner scroll on most phones */
+    flex-shrink: 0;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.07);
+  }
+
+  .card-fixed-head {
+    padding: 20px 18px 0;
+  }
+  .card-scroll-body {
+    padding: 14px 18px 24px;
+    /* Allow natural height — page itself scrolls */
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  .card-back-link { font-size: 0.7rem; margin-bottom: 12px; }
+  .card-label     { font-size: 0.62rem; margin-bottom: 4px; }
+  .card-title     { font-size: 1.65rem; letter-spacing: -0.8px; margin-bottom: 3px; }
+  .card-welcome   { font-size: 0.8rem; margin-bottom: 18px; }
+  .divider        { margin-bottom: 16px; }
+
+  .login-form { gap: 11px; }
+  .input-group label { font-size: 0.64rem; margin-bottom: 5px; }
+  .input-group input,
+  .input-group select,
+  .custom-select {
+    padding: 11px 13px;
+    font-size: 0.88rem;
+    border-radius: 10px;
+  }
+
+  .register-btn {
+    padding: 13px;
+    font-size: 0.88rem;
+    border-radius: 10px;
+    margin-top: 4px;
+  }
+
+  .otp-icon-wrap { width: 38px; height: 38px; border-radius: 11px; margin-bottom: 10px; }
+  .otp-box { height: 54px; font-size: 1.5rem; border-radius: 11px; }
+  .otp-input-container { gap: 6px; }
+
+  .orb { display: none; }
+}
+
+/* ── Small phones ≤ 420px ───────────────────────────────── */
+@media (max-width: 420px) {
+  .content-wrapper { padding: 58px 11px 22px; gap: 10px; }
+  .main-title { font-size: clamp(1.4rem, 8vw, 1.85rem); }
+  .register-card { border-radius: 16px; }
+  .card-fixed-head { padding: 16px 14px 0; }
+  .card-scroll-body { padding: 12px 14px 20px; }
+  .card-title { font-size: 1.5rem; }
+  .otp-box { height: 48px; font-size: 1.3rem; }
+  .otp-input-container { gap: 4px; }
 }
