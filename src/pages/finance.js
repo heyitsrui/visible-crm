@@ -58,14 +58,26 @@ const Finance = ({ loggedInUser }) => {
     });
   }, [searchQuery, statusFilter, projects]);
 
+  // Status groups for money totals
+  const PAID_STATUSES = ['Purchase Order', 'Completed Project'];
+  const DUE_STATUSES  = ['Lead', 'For Proposal', 'Proposal', 'Site Survey-POC', 'Renewal Support'];
+
   // KPI summary
   const kpis = useMemo(() => {
-    const total   = filteredProjects.reduce((s, p) => s + Number(p.total_amount || 0), 0);
-    const paid    = filteredProjects.reduce((s, p) => s + Number(p.paid_amount  || 0), 0);
-    const due     = filteredProjects.reduce((s, p) => s + Number(p.due_amount   || 0), 0);
-    const pct     = total > 0 ? Math.round((paid / total) * 100) : 0;
+    // Total Paid = total_amount of Purchase Order + Completed Project projects
+    const paid = projects
+      .filter(p => PAID_STATUSES.includes(p.status))
+      .reduce((s, p) => s + Number(p.total_amount || 0), 0);
+
+    // Total Due = total_amount of Lead + Proposal + Site Survey-POC + Renewal Support projects
+    const due = projects
+      .filter(p => DUE_STATUSES.includes(p.status))
+      .reduce((s, p) => s + Number(p.total_amount || 0), 0);
+
+    const total = paid + due;
+    const pct   = total > 0 ? Math.round((paid / total) * 100) : 0;
     return { total, paid, due, pct };
-  }, [filteredProjects]);
+  }, [projects]);
 
   const handleOpenModal = (project) => {
     setSelectedProject(project);
@@ -170,14 +182,16 @@ const Finance = ({ loggedInUser }) => {
             <div className="fn-kpi-icon green"><CheckCircle size={18} /></div>
             <div className="fn-kpi-body">
               <div className="fn-kpi-val">₱{fmt(kpis.paid)}</div>
-              <div className="fn-kpi-lbl">Total Collected</div>
+              <div className="fn-kpi-lbl">Total Paid</div>
+              <div style={{ fontSize: 10, color: "#16a34a", opacity: 0.8, marginTop: 2, fontWeight: 500 }}>Purchase Order · Completed</div>
             </div>
           </div>
           <div className="fn-kpi">
             <div className="fn-kpi-icon red"><AlertCircle size={18} /></div>
             <div className="fn-kpi-body">
               <div className="fn-kpi-val">₱{fmt(kpis.due)}</div>
-              <div className="fn-kpi-lbl">Outstanding Balance</div>
+              <div className="fn-kpi-lbl">Total Due</div>
+              <div style={{ fontSize: 10, color: "#dc2626", opacity: 0.8, marginTop: 2, fontWeight: 500 }}>Lead · Proposal · Site Survey · Renewal</div>
             </div>
           </div>
           <div className="fn-kpi">
