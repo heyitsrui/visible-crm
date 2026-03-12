@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Clock, MessageSquare, UserCircle, Send,
   DollarSign, Building2, Phone, Search, X,
-  Filter, Paperclip, Trash2, ChevronDown, Upload
+  Filter, Paperclip, Trash2, ChevronDown, Upload, MoreHorizontal
 } from "lucide-react";
 import axios from "axios";
 import "../styles/projects.css";
-import { sendNotification } from "../utils/notifService";
+import { sendNotification, getSocket } from "../utils/notifService";
 
 const statusClass = (status) =>
   status?.toLowerCase().replace(/[\s/]+/g, "-") || "";
@@ -41,7 +41,7 @@ const Projects = ({ currentUser }) => {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/projects-detailed");
+      const res = await axios.get("http://192.168.1.16:5000/api/projects-detailed");
       if (res.data.success) setProjects(res.data.projects);
     } catch (err) {
       console.error("Project Fetch Error:", err);
@@ -54,6 +54,64 @@ const Projects = ({ currentUser }) => {
     return () => clearTimeout(t);
   }, []);
 
+  // ─── SOCKET: auto-refresh when OTHER users add comments or attachments ────────
+  // NOTE: Do NOT call socket.off('project-comment-added') here — that listener
+  // is owned by initSocketNotifications (admin-dashboard.js) and handles the
+  // notification for all users. We add a SEPARATE named listener just for
+  // refreshing the project list on this page.
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onRefreshFromComment    = () => fetchData();
+    const onRefreshFromAttachment = () => fetchData();
+
+    // Use named listeners so we don't conflict with initSocketNotifications
+    socket.on('project-comment-added',    onRefreshFromComment);
+    socket.on('project-attachment-added', onRefreshFromAttachment);
+
+    return () => {
+      socket.off('project-comment-added',    onRefreshFromComment);
+      socket.off('project-attachment-added', onRefreshFromAttachment);
+    };
+  }, []);
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const [openCommentMenu, setOpenCommentMenu] = useState(null);
+  const [editingComment, setEditingComment]   = useState(null);
+
+  useEffect(() => {
+    const close = () => setOpenCommentMenu(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, []);
+
+  const handleEditComment = async (commentId, newText) => {
+    const authorName = currentUser?.name || currentUser?.username || "User";
+    try {
+      await axios.put(`http://192.168.1.16:5000/api/comments/${commentId}`, {
+        comment_text: newText,
+        user_name: authorName,
+      });
+      setEditingComment(null);
+      fetchData();
+    } catch (err) {
+      alert("Failed to edit comment.");
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Delete this comment?")) return;
+    const authorName = currentUser?.name || currentUser?.username || "User";
+    try {
+      await axios.delete(`http://192.168.1.16:5000/api/comments/${commentId}`, {
+        data: { user_name: authorName },
+      });
+      fetchData();
+    } catch (err) {
+      alert("Failed to delete comment.");
+    }
+  };
+
   const handleAddComment = async (projId) => {
     const commentText = newComment[projId]?.trim();
     if (!commentText) return;
@@ -63,11 +121,22 @@ const Projects = ({ currentUser }) => {
     const project = projects.find((p) => p.id === projId);
 
     try {
-      await axios.post(`http://localhost:5000/api/projects/${projId}/comments`, {
+      await axios.post(`http://192.168.1.16:5000/api/projects/${projId}/comments`, {
         user_name: authorName,
         comment_text: commentText,
       });
-      sendNotification(`💬 ${authorName} commented on "${project?.deal_name || "Project"}": ${commentText.substring(0, 30)}${commentText.length > 30 ? "..." : ""}`);
+      const preview = commentText.substring(0, 30) + (commentText.length > 30 ? "..." : "");
+      const projectName = project?.deal_name || "Project";
+      // Local notif for the person who commented
+      sendNotification(`💬 ${authorName} commented on "${projectName}": ${preview}`);
+      // Broadcast to ALL other connected users via socket
+      await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+        event: "project-comment-added",
+        projectName,
+        authorName,
+        preview,
+        changedBy: authorName,
+      });
       setNewComment((prev) => ({ ...prev, [projId]: "" }));
       fetchData();
     } catch (err) {
@@ -88,8 +157,18 @@ const Projects = ({ currentUser }) => {
 
     try {
       setIsUploading(true);
-      await axios.post(`http://localhost:5000/api/projects/${projId}/attachments`, formData);
-      sendNotification(`📎 ${uploaderName} attached "${file.name}" to "${project?.deal_name || "Project"}"`);
+      await axios.post(`http://192.168.1.16:5000/api/projects/${projId}/attachments`, formData);
+      const projectName = project?.deal_name || "Project";
+      // Local notif for the person who uploaded
+      sendNotification(`📎 ${uploaderName} attached "${file.name}" to "${projectName}"`);
+      // Broadcast to ALL other connected users via socket
+      await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+        event: "project-attachment-added",
+        projectName,
+        uploaderName,
+        fileName: file.name,
+        changedBy: uploaderName,
+      });
       setSelectedFiles((prev) => ({ ...prev, [projId]: null }));
       fetchData();
     } catch (err) {
@@ -102,7 +181,7 @@ const Projects = ({ currentUser }) => {
   const handleDeleteAttachment = async (fileId) => {
     if (!window.confirm("Delete this file?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/attachments/${fileId}`);
+      await axios.delete(`http://192.168.1.16:5000/api/attachments/${fileId}`);
       fetchData();
     } catch (err) {
       alert("Delete failed");
@@ -137,6 +216,23 @@ const Projects = ({ currentUser }) => {
 
   return (
     <div className={`projects-page-wrapper ${ready ? "pj-ready" : ""}`}>
+      <style>{`
+        .pj-comment-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 5px 0; }
+        .pj-comment-main { display: flex; align-items: baseline; gap: 5px; flex: 1; min-width: 0; flex-wrap: wrap; }
+        .pj-comment-menu-wrap { position: relative; flex-shrink: 0; }
+        .pj-comment-dots { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 2px 4px; border-radius: 4px; display: flex; align-items: center; opacity: 0; transition: opacity 0.15s; }
+        .pj-comment-item:hover .pj-comment-dots { opacity: 1; }
+        .pj-comment-dots:hover { background: #f3f4f6; color: #374151; }
+        .pj-comment-dropdown { position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.10); z-index: 100; min-width: 120px; overflow: hidden; }
+        .pj-comment-dropdown button { display: block; width: 100%; text-align: left; padding: 8px 14px; background: none; border: none; cursor: pointer; font-size: 12.5px; font-family: inherit; color: #374151; transition: background 0.1s; }
+        .pj-comment-dropdown button:hover { background: #f9fafb; }
+        .pj-comment-dropdown button.danger { color: #dc2626; }
+        .pj-comment-dropdown button.danger:hover { background: #fff5f5; }
+        .pj-comment-edit-row { display: flex; align-items: center; gap: 6px; flex: 1; }
+        .pj-comment-edit-input { flex: 1; border: 1.5px solid #a5b4fc; border-radius: 6px; padding: 3px 8px; font-size: 12.5px; font-family: inherit; outline: none; }
+        .pj-comment-edit-save { background: #4f46e5; color: #fff; border: none; border-radius: 6px; padding: 3px 10px; font-size: 12px; font-family: inherit; cursor: pointer; font-weight: 600; }
+        .pj-comment-edit-cancel { background: #f3f4f6; color: #6b7280; border: none; border-radius: 6px; padding: 3px 10px; font-size: 12px; font-family: inherit; cursor: pointer; }
+      `}</style>
 
       {/* ── Fixed top ─────────────────────────────── */}
       <div className="pj-top">
@@ -288,7 +384,7 @@ const Projects = ({ currentUser }) => {
                             {proj.attachments.map((file) => (
                               <div key={file.id} className="pj-file-item">
                                 <a
-                                  href={`http://localhost:5000/uploads/${file.file_path}`}
+                                  href={`http://192.168.1.16:5000/uploads/${file.file_path}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="pj-file-link"
@@ -344,12 +440,55 @@ const Projects = ({ currentUser }) => {
                           <div className="pj-comments-thread">
                             <div className="pj-comments-list">
                               {proj.comments?.length > 0 ? (
-                                proj.comments.map((c, i) => (
-                                  <div key={i} className="pj-comment-item">
-                                    <span className="pj-comment-author">{c.user_name || "Unknown"}:</span>
-                                    <span className="pj-comment-text">{c.comment_text}</span>
-                                  </div>
-                                ))
+                                proj.comments.map((c, i) => {
+                                  const isOwner = (currentUser?.name || currentUser?.username) === c.user_name;
+                                  const isEditing = editingComment?.id === c.id;
+                                  return (
+                                    <div key={i} className="pj-comment-item">
+                                      <div className="pj-comment-main">
+                                        <span className="pj-comment-author">{c.user_name || "Unknown"}:</span>
+                                        {isEditing ? (
+                                          <div className="pj-comment-edit-row" onClick={e => e.stopPropagation()}>
+                                            <input
+                                              className="pj-comment-edit-input"
+                                              value={editingComment.text}
+                                              onChange={e => setEditingComment({ ...editingComment, text: e.target.value })}
+                                              onKeyDown={e => {
+                                                if (e.key === 'Enter') handleEditComment(c.id, editingComment.text);
+                                                if (e.key === 'Escape') setEditingComment(null);
+                                              }}
+                                              autoFocus
+                                            />
+                                            <button className="pj-comment-edit-save" onClick={() => handleEditComment(c.id, editingComment.text)}>Save</button>
+                                            <button className="pj-comment-edit-cancel" onClick={() => setEditingComment(null)}>Cancel</button>
+                                          </div>
+                                        ) : (
+                                          <span className="pj-comment-text">{c.comment_text}</span>
+                                        )}
+                                      </div>
+                                      {isOwner && !isEditing && (
+                                        <div className="pj-comment-menu-wrap" onClick={e => e.stopPropagation()}>
+                                          <button
+                                            className="pj-comment-dots"
+                                            onClick={() => setOpenCommentMenu(openCommentMenu === c.id ? null : c.id)}
+                                          >
+                                            <MoreHorizontal size={14} />
+                                          </button>
+                                          {openCommentMenu === c.id && (
+                                            <div className="pj-comment-dropdown">
+                                              <button onClick={() => { setEditingComment({ id: c.id, text: c.comment_text }); setOpenCommentMenu(null); }}>
+                                                ✏️ Edit
+                                              </button>
+                                              <button className="danger" onClick={() => { handleDeleteComment(c.id); setOpenCommentMenu(null); }}>
+                                                🗑️ Delete
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })
                               ) : (
                                 <p className="pj-no-comments">No updates yet.</p>
                               )}
