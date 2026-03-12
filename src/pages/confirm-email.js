@@ -54,13 +54,13 @@ function ConfirmEmail() {
     try {
       setLoading(true);
       setError("");
-      const verifyRes = await axios.post("http://localhost:5000/verify-otp", { email, otp: fullOtp });
+      const verifyRes = await axios.post("http://192.168.1.16:5000/verify-otp", { email, otp: fullOtp });
 
       if (verifyRes.data.success) {
         const savedData = JSON.parse(localStorage.getItem("pendingUserData"));
         if (!savedData) { setError("Registration session expired. Please go back."); return; }
 
-        await axios.post("http://localhost:5000/register", {
+        await axios.post("http://192.168.1.16:5000/register", {
           name:     savedData.name,
           email:    savedData.email,
           phone:    savedData.phone,
@@ -84,7 +84,7 @@ function ConfirmEmail() {
     try {
       setResending(true);
       setError("");
-      await axios.post("http://localhost:5000/send-otp", { email });
+      await axios.post("http://192.168.1.16:5000/send-otp", { email });
       alert("New OTP sent to your email.");
     } catch (err) {
       setError("Failed to resend OTP.");
