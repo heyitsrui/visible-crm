@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, X, Trash2, FileSpreadsheet, Filter, UserPlus, Users, Mail, Phone, Building2, User } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import '../styles/contacts.css';
+import { sendNotification, getSocket } from '../utils/notifService';
 
 /* ── Helpers ──────────────────────────────────────────────── */
 const toSlug  = (s) => s?.toLowerCase().replace(/[\s/]+/g, '-') || 'new';
@@ -16,10 +17,14 @@ const StatusBadge = ({ status }) => (
 );
 
 /* ── Component ────────────────────────────────────────────── */
+const API_BASE_URL = `http://${window.location.hostname}:5000`;
+
 const Client = ({ userRole }) => {
   const [isModalOpen,   setIsModalOpen]   = useState(false);
   const [clients,       setClients]       = useState([]);
   const [isLoading,     setIsLoading]     = useState(true);
+  const [isSubmitting,  setIsSubmitting]  = useState(false);
+  const [submitError,   setSubmitError]   = useState('');
   const [searchQuery,   setSearchQuery]   = useState('');
   const [statusFilter,  setStatusFilter]  = useState('All');
   const [ready,         setReady]         = useState(false);
@@ -41,7 +46,7 @@ const Client = ({ userRole }) => {
   const fetchClients = async () => {
     try {
       setIsLoading(true);
-      const res  = await fetch('http://localhost:5000/api/clients');
+      const res  = await fetch(`${API_BASE_URL}/api/clients`);
       const data = await res.json();
       if (data.success)
         setClients(data.clients.sort((a, b) => a.record_id - b.record_id));
@@ -57,6 +62,15 @@ const Client = ({ userRole }) => {
     const t = setTimeout(() => setReady(true), 80);
     return () => clearTimeout(t);
   }, []);
+
+  // ─── SOCKET: auto-refresh for all users when a client is added ───────────
+  useEffect(() => {
+    const socket = getSocket();
+    const onRefresh = () => fetchClients();
+    socket.on('client-added', onRefresh);
+    return () => socket.off('client-added', onRefresh);
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
     const term = searchQuery.toLowerCase().trim();
@@ -94,7 +108,7 @@ const Client = ({ userRole }) => {
         }));
         const valid = mapped.filter((c) => c.email && c.first_name);
         if (!valid.length) return alert('Import failed: No valid data found.');
-        const res = await fetch('http://localhost:5000/api/clients/bulk', {
+        const res = await fetch(`${API_BASE_URL}/api/clients/bulk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ clients: valid }),
@@ -115,29 +129,64 @@ const Client = ({ userRole }) => {
     if (!canEdit) return alert('No permission.');
     if (!window.confirm('Delete this client?')) return;
     try {
-      const res  = await fetch(`http://localhost:5000/api/clients/${id}`, { method: 'DELETE' });
+      const res  = await fetch(`${API_BASE_URL}/api/clients/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) fetchClients();
     } catch (err) { console.error('Delete error:', err); }
   };
 
-  const toggleModal = () => {
+  const openModal = () => {
     if (!canEdit) return;
-    setIsModalOpen((v) => !v);
-    if (!isModalOpen) setFormData(blankForm);
+    setFormData(blankForm);
+    setSubmitError('');
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setFormData(blankForm);
+    setSubmitError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError('');
     try {
-      const res  = await fetch('http://localhost:5000/api/clients', {
+      const res  = await fetch(`${API_BASE_URL}/api/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
       const data = await res.json();
-      if (data.success) { await fetchClients(); toggleModal(); }
-    } catch (err) { console.error('Submission error:', err); }
+      if (data.success) {
+        const addedBy = JSON.parse(localStorage.getItem('loggedInUser'))?.name || 'Someone';
+        const fullName = `${formData.first_name} ${formData.last_name}`.trim();
+        // Local notif for the creator
+        sendNotification(`👤 New client added: ${fullName}${formData.assoc_company ? ` (${formData.assoc_company})` : ''}`);
+        // Broadcast to all other users
+        await fetch(`http://${window.location.hostname}:5000/api/projects/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'client-added',
+            clientName: fullName,
+            company: formData.assoc_company || '',
+            addedBy,
+            changedBy: addedBy,
+          }),
+        });
+        await fetchClients();
+        closeModal();
+      } else {
+        setSubmitError(data.error || data.message || 'Failed to create client. Please try again.');
+      }
+    } catch (err) {
+      console.error('Submission error:', err);
+      setSubmitError('Cannot connect to server. Please check your connection.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const set = (k) => (e) => setFormData((f) => ({ ...f, [k]: e.target.value }));
@@ -170,7 +219,7 @@ const Client = ({ userRole }) => {
               <button className="ct-btn-import" onClick={() => fileInputRef.current.click()}>
                 <FileSpreadsheet size={14} /> Import Excel
               </button>
-              <button className="ct-btn-add" onClick={toggleModal}>
+              <button className="ct-btn-add" onClick={openModal}>
                 <UserPlus size={14} /> Add Client
               </button>
             </div>
@@ -212,7 +261,6 @@ const Client = ({ userRole }) => {
           <div className="ct-table-scroll">
             <table className="ct-table">
               <colgroup>
-                <col style={{ width: '52px' }} />
                 <col style={{ width: '180px' }} />
                 <col style={{ width: '160px' }} />
                 <col style={{ width: '220px' }} />
@@ -223,7 +271,6 @@ const Client = ({ userRole }) => {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="ct-center">ID</th>
                   <th>Name</th>
                   <th>Company</th>
                   <th>Email</th>
@@ -235,16 +282,15 @@ const Client = ({ userRole }) => {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={canEdit ? 8 : 7}>
+                  <tr><td colSpan={canEdit ? 7 : 6}>
                     <div className="ct-loading"><div className="ct-spinner" /><span>Loading clients…</span></div>
                   </td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={canEdit ? 8 : 7}>
+                  <tr><td colSpan={canEdit ? 7 : 6}>
                     <div className="ct-empty"><Users size={34} /><p>No clients found</p></div>
                   </td></tr>
                 ) : filtered.map((cl, i) => (
                   <tr key={cl.record_id} style={{ animationDelay: `${i * 14}ms` }}>
-                    <td className="ct-center ct-id">{cl.record_id}</td>
                     <td>
                       <div className="ct-name-cell">
                         <div className="ct-avatar">{initials(cl.first_name, cl.last_name)}</div>
@@ -311,7 +357,7 @@ const Client = ({ userRole }) => {
 
       {/* ── Modal ────────────────────────────────────── */}
       {isModalOpen && (
-        <div className="ct-overlay" onClick={(e) => e.target === e.currentTarget && toggleModal()}>
+        <div className="ct-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="ct-modal">
 
             <div className="ct-modal-head">
@@ -322,11 +368,11 @@ const Client = ({ userRole }) => {
                   <p className="ct-modal-sub">Add a new contact to your records</p>
                 </div>
               </div>
-              <button className="ct-modal-x" onClick={toggleModal}><X size={15} /></button>
+              <button className="ct-modal-x" onClick={closeModal}><X size={15} /></button>
             </div>
 
             <div className="ct-modal-body">
-              <form id="ct-client-form" onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit}>
                 <div className="ct-section">Personal Info</div>
                 <div className="ct-form-grid">
                   <div className="ct-field">
@@ -369,14 +415,20 @@ const Client = ({ userRole }) => {
                     </select>
                   </div>
                 </div>
-              </form>
-            </div>
 
-            <div className="ct-modal-foot">
-              <button className="ct-btn-cancel" type="button" onClick={toggleModal}>Cancel</button>
-              <button className="ct-btn-save"   type="submit" form="ct-client-form">
-                <UserPlus size={13} /> Create Client
-              </button>
+                {submitError && (
+                  <p style={{ color: '#dc2626', fontSize: 12, margin: '12px 0 0', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7, padding: '7px 12px' }}>
+                    ⚠️ {submitError}
+                  </p>
+                )}
+
+                <div className="ct-modal-foot">
+                  <button className="ct-btn-cancel" type="button" onClick={closeModal} disabled={isSubmitting}>Cancel</button>
+                  <button className="ct-btn-save" type="submit" disabled={isSubmitting}>
+                    <UserPlus size={13} /> {isSubmitting ? 'Saving…' : 'Create Client'}
+                  </button>
+                </div>
+              </form>
             </div>
 
           </div>
