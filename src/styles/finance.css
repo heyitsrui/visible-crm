@@ -55,7 +55,7 @@
   box-sizing: border-box;
   opacity: 0;
   transition: opacity 0.3s ease;
-  width: 1030px;
+  width: auto;
 }
 
 .fn-page.fn-ready { opacity: 1; }
