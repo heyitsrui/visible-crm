@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import '../styles/dashboard.css';
 
-const Sidebar = ({ activeIndex, setActiveIndex, onLogout, className }) => {
+const Sidebar = ({ activeIndex, setActiveIndex, onLogout, onClose, className }) => {
   const [openMenus, setOpenMenus] = useState({});
 
   const menuItems = [
@@ -57,9 +57,9 @@ const Sidebar = ({ activeIndex, setActiveIndex, onLogout, className }) => {
     <React.Fragment key={index}>
       <button
         onClick={() => {
-          if (item.isLogout)        onLogout();
+          if (item.isLogout)        { onLogout(); onClose?.(); }
           else if (item.isDropdown) toggleDropdown(item.label);
-          else                      setActiveIndex(index);
+          else                      { setActiveIndex(index); onClose?.(); }
         }}
         className={`nav-item
           ${activeIndex === index ? 'active' : ''}
@@ -80,7 +80,7 @@ const Sidebar = ({ activeIndex, setActiveIndex, onLogout, className }) => {
           {item.subItems.map((sub, subIdx) => (
             <button
               key={subIdx}
-              onClick={() => setActiveIndex(sub.toLowerCase())}
+              onClick={() => { setActiveIndex(sub.toLowerCase()); onClose?.(); }}
               className={`sub-nav-item ${activeIndex === sub.toLowerCase() ? 'sub-active' : ''}`}
             >
               {sub}
