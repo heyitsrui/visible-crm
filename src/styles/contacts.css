@@ -38,7 +38,6 @@
   padding:22px 28px 14px;
   width:100%;
   box-sizing:border-box;
-  background:#f0f2f7;        /* match dashboard bg so it looks fixed */
   position:relative;
   z-index:1;
 }
