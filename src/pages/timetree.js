@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import '../styles/timetree.css';
-import { sendNotification } from "../utils/notifService";
+import { sendNotification, getSocket } from "../utils/notifService";
 
-const API_BASE_URL = 'http://localhost:5000/api/timetree';
+const API_BASE_URL = 'http://192.168.1.16:5000/api/timetree';
 const ROW_HEIGHT = 60;
 
 const formatDateToISO = (date) => {
@@ -84,12 +84,7 @@ const TimeTree = () => {
         try {
             const { data } = await axios.get(`${API_BASE_URL}/events`);
             if (data.success) {
-                data.events.forEach(newEvent => {
-                    const oldEvent = events.find(e => e.id === newEvent.id);
-                    if (oldEvent && oldEvent.status === 'pending' && newEvent.status === 'completed') {
-                        sendNotification(`⏰ Deadline reached: "${newEvent.title}" has been auto-completed.`);
-                    }
-                });
+                // Auto-complete status changes are now broadcast via socket (timetree-event-completed)
                 setEvents(data.events);
                 setActiveEvent(current => {
                     if (!current) return null;
@@ -114,26 +109,62 @@ const TimeTree = () => {
 
     useEffect(() => {
         fetchEvents();
-        const interval = setInterval(fetchEvents, 5000);
-        return () => clearInterval(interval);
     }, [fetchEvents]);
 
+    // ─── SOCKET: auto-refresh for all timetree events ─────────────────────────
     useEffect(() => {
-        const checkDeadlines = () => {
+        const socket = getSocket();
+        const onRefresh = () => fetchEvents();
+        socket.on('timetree-event-created',   onRefresh);
+        socket.on('timetree-event-completed', onRefresh);
+        socket.on('timetree-chat-sent',       onRefresh);
+        return () => {
+            socket.off('timetree-event-created',   onRefresh);
+            socket.off('timetree-event-completed', onRefresh);
+            socket.off('timetree-chat-sent',       onRefresh);
+        };
+    }, []);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ─── "Event is near" deadline reminders ──────────────────────────────────
+    useEffect(() => {
+        const notifiedSet = new Set(); // prevent duplicate notifications per event per session
+
+        const checkUpcoming = () => {
             const now = new Date();
-            const currentTimeStr = now.toTimeString().substring(0, 5);
-            const currentDateStr = formatDateToISO(now);
+            const todayStr = formatDateToISO(now);
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
             events.forEach(ev => {
+                if (ev.status === 'completed') return;
                 const eventDate = ev.event_date?.substring(0, 10);
-                const eventTime = ev.start_time?.substring(0, 5);
-                if (ev.status === 'pending' && eventDate === currentDateStr && eventTime === currentTimeStr) {
-                    sendNotification(`⏰ Dynamic Alert: "${ev.title}" is starting now!`);
+                if (eventDate !== todayStr) return;
+
+                const [h, m] = (ev.start_time || '00:00').split(':').map(Number);
+                const eventMinutes = h * 60 + m;
+                const diff = eventMinutes - nowMinutes;
+
+                const key15  = `${ev.id}-15min`;
+                const keyNow = `${ev.id}-now`;
+
+                // 15-minute warning (fires when diff is between 14 and 15 mins)
+                if (diff >= 14 && diff < 15 && !notifiedSet.has(key15)) {
+                    notifiedSet.add(key15);
+                    sendNotification(`⏰ Reminder: "${ev.title}" starts in 15 minutes!`);
+                }
+                // Starting now (fires when diff is between 0 and 1 min)
+                if (diff >= 0 && diff < 1 && !notifiedSet.has(keyNow)) {
+                    notifiedSet.add(keyNow);
+                    sendNotification(`🚀 "${ev.title}" is starting now!`);
                 }
             });
         };
-        const timer = setInterval(checkDeadlines, 60000);
+
+        const timer = setInterval(checkUpcoming, 60000); // check every minute
+        checkUpcoming(); // run immediately on mount
         return () => clearInterval(timer);
     }, [events]);
+    // ─────────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -157,11 +188,18 @@ const TimeTree = () => {
         setEvents(events.map(ev => ev.id === event.id ? {...ev, status: newStatus} : ev));
         try {
             await axios.put(`${API_BASE_URL}/events/${event.id}/status`, { status: newStatus });
-            if (newStatus === 'completed') {
-                sendNotification(`✅ Event Completed: "${event.title}" has been marked as finished by ${currentUser}! 🎉`);
-            } else {
-                sendNotification(`🔄 Event Reopened: "${event.title}" is back on the list.`);
-            }
+            const msg = newStatus === 'completed'
+                ? `✅ Event Completed: "${event.title}" marked as finished by ${currentUser}! 🎉`
+                : `🔄 Event Reopened: "${event.title}" is back on the list by ${currentUser}.`;
+            // Local notif for the person who toggled
+            sendNotification(msg);
+            // Broadcast to all other users
+            await axios.post('http://192.168.1.16:5000/api/projects/notify', {
+                event: 'timetree-event-completed',
+                eventTitle: event.title,
+                newStatus,
+                changedBy: currentUser,
+            });
         } catch (err) {
             console.error("Status update failed", err);
             fetchEvents();
@@ -201,7 +239,17 @@ const TimeTree = () => {
         try {
             const { data } = await axios.post(`${API_BASE_URL}/events`, payload);
             if (data.success) {
+                // Local notif for creator
                 sendNotification(`📅 New Event Created: "${formData.title}" scheduled for ${formData.date} at ${formData.startTime}`);
+                // Broadcast to all other users
+                await axios.post('http://192.168.1.16:5000/api/projects/notify', {
+                    event: 'timetree-event-created',
+                    eventTitle: formData.title,
+                    eventDate: formData.date,
+                    startTime: formData.startTime,
+                    createdBy: currentUser,
+                    changedBy: currentUser,
+                });
                 setShowModal(false);
                 setFormData({ title: '', startTime: '08:00', deadline: '', deadlineTime: '', date: formatDateToISO(new Date()) });
                 fetchEvents();
@@ -224,7 +272,15 @@ const TimeTree = () => {
                     message_text: msgText,
                     sent_at: new Date().toISOString()
                 });
-                sendNotification(`💬 ${currentUser} commented on "${activeEvent.title}"`);
+                // Broadcast to all other users — sender sees their own message already
+                await axios.post('http://192.168.1.16:5000/api/projects/notify', {
+                    event: 'timetree-chat-sent',
+                    eventTitle: activeEvent.title,
+                    senderName: currentUser,
+                    preview: msgText.substring(0, 40) + (msgText.length > 40 ? '...' : ''),
+                    senderId: userObj.id,
+                    changedBy: currentUser,
+                });
                 fetchEvents();
             } catch (err) { console.error("Message failed", err); }
         }
