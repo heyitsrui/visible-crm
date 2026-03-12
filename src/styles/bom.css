@@ -116,6 +116,7 @@
   font-size: 12.5px;
   font-weight: 600;
   margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
   animation: bom-toast-in 0.25s ease;
 }
 @keyframes bom-toast-in {
@@ -446,7 +447,14 @@
   letter-spacing: 0.06em;
 }
 
-/* ─── BOM Table ─────────────────────────────────────────────────────────────── */
+/* ─── BOM Table ─────────────────────────────────────────────────────────────────
+   Table height is fully automatic — it grows and shrinks with the number of
+   rows React renders. No min-height or max-height is set here so:
+     1 item  → table is ~1 row tall
+     20 items → table is ~20 rows tall
+   The wrapper uses overflow:auto so a horizontal scrollbar only appears
+   when columns overflow on small screens.
+   ──────────────────────────────────────────────────────────────────────────── */
 .bom-table-wrapper {
   background: #fff;
   border: 1px solid #e4e8f0;
@@ -601,15 +609,15 @@
 .drafts-list { display: flex; flex-direction: column; gap: 10px; }
 .drafts-hint { font-size: 12px; color: #64748b; margin-bottom: 6px; }
 
+/* ─── Draft Card — NO hover transform (was causing modal repaint/stutter) ────── */
 .draft-card {
   background: #fff;
   border: 1.5px solid #e4e8f0;
   border-radius: 14px;
   padding: 18px 22px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  transition: box-shadow 0.18s, transform 0.15s;
+  /* Removed: transition, transform on hover */
 }
-.draft-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.07); transform: translateY(-1px); }
 .pricing-card { border-left: 4px solid #10b981; }
 
 .draft-card-top {
@@ -631,9 +639,11 @@
   font-family: 'Poppins', sans-serif;
   flex-shrink: 0;
 }
-.draft-status-badge.draft   { background: #fef3c7; color: #b45309; }
-.draft-status-badge.pricing { background: #d1fae5; color: #065f46; }
+.draft-status-badge.draft     { background: #fef3c7; color: #b45309; }
+.draft-status-badge.pricing   { background: #d1fae5; color: #065f46; }
 .draft-status-badge.forwarded { background: #d1fae5; color: #065f46; }
+.draft-status-badge.rejected  { background: #fee2e2; color: #dc2626; }
+.draft-status-badge.approved  { background: #d1fae5; color: #065f46; }
 
 .draft-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -662,9 +672,10 @@
   cursor: pointer;
   font-family: 'Poppins', sans-serif;
   box-shadow: 0 2px 8px rgba(37,99,235,0.25);
-  transition: transform 0.12s, box-shadow 0.12s;
+  transition: box-shadow 0.12s;
+  /* Removed transform on hover */
 }
-.draft-btn-forward:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+.draft-btn-forward:hover { box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
 
 .draft-btn-back {
   padding: 6px 14px;
@@ -695,32 +706,47 @@
 }
 .draft-btn-delete:hover { background: #fee2e2; }
 
-/* ─── Modal ─────────────────────────────────────────────────────────────────── */
+/* ─── Modal — FIXED: steady center, plain gray bg, no stutter ───────────────────
+   What was causing the stutter:
+     • backdrop-filter: blur() repaints the entire page on every mouse move
+     • draft-card hover transform: translateY() caused layout repaints that
+       bled through the overlay, making the modal appear to shift
+     • modal-box scale + translate animation: added perceived jitter on open
+   All three are removed. The overlay is now a plain fixed rgba layer.
+   ──────────────────────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);   /* plain gray — no blur */
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
-  backdrop-filter: blur(3px);
-  padding: 16px;
+  z-index: 9999;
+  pointer-events: all;              /* block all hover events behind overlay */
 }
+
 .modal-box {
   background: #fff;
   border-radius: 18px;
   width: 90%;
   max-width: 540px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
   overflow: hidden;
-  animation: modal-in 0.22s ease;
+  will-change: opacity;             /* own compositor layer = no page repaint */
+  isolation: isolate;
+  animation: modal-fade 0.18s ease both;
+  /* NO scale, NO translateY — only opacity changes */
 }
 .modal-sm { max-width: 400px; }
-@keyframes modal-in {
-  from { opacity: 0; transform: scale(0.96) translateY(10px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -750,7 +776,9 @@
   flex-shrink: 0;
 }
 .modal-close:hover { background: rgba(255,255,255,0.25); }
+
 .modal-body { padding: 22px 26px 26px; }
+
 .modal-label {
   display: block;
   font-size: 10.5px;
@@ -769,9 +797,14 @@
   font-family: 'Poppins', sans-serif;
   color: #1a202c;
   background: #f8fafc;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s; /* no box-shadow transition = fewer repaints */
 }
-.modal-input:focus { outline: none; border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+.modal-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
 .modal-textarea {
   width: 100%;
   padding: 10px 14px;
@@ -785,7 +818,9 @@
   transition: border-color 0.15s;
 }
 .modal-textarea:focus { outline: none; border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+
 .modal-desc { font-size: 12.5px; color: #64748b; margin: 0 0 16px; }
+
 .modal-footer-actions {
   display: flex;
   justify-content: flex-end;
@@ -816,10 +851,252 @@
   cursor: pointer;
   font-family: 'Poppins', sans-serif;
   box-shadow: 0 3px 12px rgba(37,99,235,0.3);
-  transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+  transition: opacity 0.12s; /* opacity only — no transform */
 }
-.modal-save-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(37,99,235,0.38); }
-.modal-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.modal-save-btn:hover:not(:disabled) { opacity: 0.88; }
+.modal-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ─── ct-modal system — matches ImportModal card exactly ────────────────────── */
+.ct-modal {
+  background: #fff;
+  border-radius: 18px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  animation: modal-fade 0.18s ease both;
+}
+
+/* Header — same gradient as ImportModal */
+.ct-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 18px;
+  gap: 12px;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+}
+
+.ct-modal-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Icon badge */
+.ct-modal-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.ct-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+  font-family: 'Poppins', sans-serif;
+}
+
+.ct-modal-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.65);
+  margin: 2px 0 0;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Close button */
+.ct-modal-x {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  font-family: 'Poppins', sans-serif;
+}
+.ct-modal-x:hover { background: rgba(255,255,255,0.28); }
+
+/* Body */
+.ct-modal-body {
+  padding: 20px 24px 12px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+/* Section label — blue uppercase with trailing line */
+.ct-section {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  margin-top: 4px;
+  font-family: 'Poppins', sans-serif;
+}
+.ct-section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e8edf5;
+}
+
+/* 2-col grid */
+.ct-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ct-field { display: flex; flex-direction: column; gap: 5px; }
+.ct-full  { grid-column: 1 / -1; }
+
+/* Labels — proposal.css modali-field label */
+.ct-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* ── Inputs & selects — proposal.css .modali-body input style ── */
+.ct-input-field,
+.ct-select-field {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: 'Poppins', sans-serif;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  color: #1a202c;
+  background: #f8fafc;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  outline: none;
+}
+.ct-input-field:focus,
+.ct-select-field:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
+.ct-input-field::placeholder { color: #b0bec5; }
+.ct-select-field { cursor: pointer; }
+
+/* ── Textarea — same style as inputs ── */
+.ct-textarea-field {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: 'Poppins', sans-serif;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  color: #1a202c;
+  background: #f8fafc;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  outline: none;
+}
+.ct-textarea-field:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
+.ct-textarea-field::placeholder { color: #b0bec5; }
+
+/* Footer */
+.ct-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px 18px;
+  border-top: 1px solid #f1f5f9;
+  background: #fafbfc;
+}
+
+/* Cancel — proposal.css .cancel-btn */
+.ct-btn-cancel {
+  background: transparent;
+  color: #64748b;
+  border: 1.5px solid #e2e8f0;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.ct-btn-cancel:hover { background: #f1f5f9; border-color: #cbd5e1; }
+
+/* Save — proposal.css .save-btn */
+.ct-btn-save {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.28);
+  transition: background 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ct-btn-save:hover:not(:disabled) { background: #1d4ed8; box-shadow: 0 4px 14px rgba(37,99,235,0.38); }
+.ct-btn-save:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Danger (Reject) */
+.ct-btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(220,38,38,0.28);
+  transition: background 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ct-btn-danger:hover { background: #b91c1c; box-shadow: 0 4px 14px rgba(220,38,38,0.38); }
 
 /* ─── Misc ──────────────────────────────────────────────────────────────────── */
 .bom-row-actions { display: flex; gap: 6px; align-items: center; }
