@@ -27,7 +27,7 @@ function ForgotPassword() {
   const [isLoading,       setIsLoading]       = useState(false);
 
   const inputRefs = useRef([]);
-  const API = 'http://localhost:5000';
+  const API = 'http://192.168.1.16:5000';
 
   const meta = STEP_META[step - 1];
   const StepIcon = meta.icon;
