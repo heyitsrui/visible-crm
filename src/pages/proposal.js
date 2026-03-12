@@ -2,14 +2,14 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import "../styles/proposal.css";
-import { sendNotification } from "../utils/notifService";
+import { sendNotification, getSocket } from "../utils/notifService";
 import { FileUp, Lock, Unlock, User, DollarSign, Pencil, Trash2 } from "lucide-react";
 
 const Proposal = ({ currentUser }) => {
-  const [projects, setProjects]     = useState([]);
-  const [search, setSearch]         = useState("");
-  const [showModal, setShowModal]   = useState(false);
-  const [editing, setEditing]       = useState(null);
+  const [projects, setProjects]       = useState([]);
+  const [search, setSearch]           = useState("");
+  const [showModal, setShowModal]     = useState(false);
+  const [editing, setEditing]         = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
   // Mode Toggle (Default Read-Only)
@@ -39,15 +39,49 @@ const Proposal = ({ currentUser }) => {
 
   // Pipeline summary stats (top 4 most actionable)
   const pipelineStats = [
-    { label: 'Lead',       color: '#f59e0b', count: projects.filter(p => p.status === 'Lead').length },
-    { label: 'Active',     color: '#3b82f6', count: projects.filter(p => ['Proposal','Purchase Order','Site Survey-POC'].includes(p.status)).length },
-    { label: 'Completed',  color: '#22c55e', count: projects.filter(p => p.status === 'Completed Project').length },
-    { label: 'Lost',       color: '#ef4444', count: projects.filter(p => p.status === 'Closed Lost').length },
-    { label: 'Renewal',    color: '#f97316', count: projects.filter(p => p.status === 'Renewal Support').length },
-    { label: 'Total',      color: '#8b5cf6', count: projects.length },
+    { label: 'Lead',      color: '#f59e0b', count: projects.filter(p => p.status === 'Lead').length },
+    { label: 'Active',    color: '#3b82f6', count: projects.filter(p => ['Proposal','Purchase Order','Site Survey-POC'].includes(p.status)).length },
+    { label: 'Completed', color: '#22c55e', count: projects.filter(p => p.status === 'Completed Project').length },
+    { label: 'Lost',      color: '#ef4444', count: projects.filter(p => p.status === 'Closed Lost').length },
+    { label: 'Renewal',   color: '#f97316', count: projects.filter(p => p.status === 'Renewal Support').length },
+    { label: 'Total',     color: '#8b5cf6', count: projects.length },
   ];
 
   useEffect(() => { fetchProjects(); }, []);
+
+  // ─── SOCKET: auto-refresh board + show notif on ALL clients ───────────────
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleDealStatusChanged = ({ dealName, status, changedBy, time }) => {
+      fetchProjects();
+      sendNotification(`🔄 "${dealName}" moved to ${status} by ${changedBy}`);
+    };
+
+    const handleDealCreated = ({ dealName, changedBy, time }) => {
+      fetchProjects();
+      sendNotification(`🚀 New deal "${dealName}" created by ${changedBy}`);
+    };
+
+    const handleDealUpdated = ({ dealName, changedBy, time }) => {
+      fetchProjects();
+      sendNotification(`📝 Deal "${dealName}" was updated by ${changedBy}`);
+    };
+
+    socket.off("deal-status-changed");
+    socket.off("deal-created");
+    socket.off("deal-updated");
+    socket.on("deal-status-changed", handleDealStatusChanged);
+    socket.on("deal-created", handleDealCreated);
+    socket.on("deal-updated", handleDealUpdated);
+
+    return () => {
+      socket.off("deal-status-changed", handleDealStatusChanged);
+      socket.off("deal-created", handleDealCreated);
+      socket.off("deal-updated", handleDealUpdated);
+    };
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const total = parseFloat(form.total_amount) || 0;
@@ -57,7 +91,7 @@ const Proposal = ({ currentUser }) => {
 
   const fetchProjects = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/projects");
+      const res = await axios.get("http://192.168.1.16:5000/api/projects");
       if (res.data.success) setProjects(res.data.projects);
     } catch (err) { console.error("Failed to fetch projects:", err); }
   };
@@ -88,7 +122,7 @@ const Proposal = ({ currentUser }) => {
       });
 
       try {
-        const res = await axios.post("http://localhost:5000/api/projects/bulk", { deals: formattedDeals });
+        const res = await axios.post("http://192.168.1.16:5000/api/projects/bulk", { deals: formattedDeals });
         if (res.data.success) { alert(res.data.message); fetchProjects(); }
       } catch (err) {
         alert("Upload failed. Check console for error details.");
@@ -104,10 +138,21 @@ const Proposal = ({ currentUser }) => {
     if (!form.deal_name) return alert("Deal name required");
     try {
       if (editing) {
-        await axios.put(`http://localhost:5000/api/projects/${editing.id}`, form);
+        await axios.put(`http://192.168.1.16:5000/api/projects/${editing.id}`, form);
+        await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+          event: "deal-updated",
+          dealName: form.deal_name,
+          changedBy: currentUser?.name || "Admin",
+        });
         sendNotification(`📝 Updated deal: ${form.deal_name}`);
       } else {
-        await axios.post("http://localhost:5000/api/projects", form);
+        const res = await axios.post("http://192.168.1.16:5000/api/projects", form);
+        // Broadcast to all clients so board refreshes + notification appears
+        await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+          event: "deal-created",
+          dealName: form.deal_name,
+          changedBy: currentUser?.name || "Admin",
+        });
         sendNotification(`🚀 New deal created: ${form.deal_name}`);
       }
       setShowModal(false); setEditing(null); setForm(initialForm); fetchProjects();
@@ -118,8 +163,17 @@ const Proposal = ({ currentUser }) => {
     if (!canModify) return;
     try {
       const project = projects.find(p => p.id === id);
-      await axios.put(`http://localhost:5000/api/projects/${id}/status`, { status });
-      sendNotification(`🔄 Deal "${project?.deal_name}" moved to ${status}`);
+      const dealName = project?.deal_name || "Unknown Deal"; // ← fixes "undefined"
+      const changedBy = currentUser?.name || "Admin";
+
+      await axios.put(`http://192.168.1.16:5000/api/projects/${id}/status`, {
+        status,
+        dealName,   // ← send dealName so server can include it in the broadcast
+        changedBy,
+      });
+
+      // Local notif for the person who made the change
+      sendNotification(`🔄 "${dealName}" moved to ${status}`);
       fetchProjects();
     } catch (err) { console.error("Failed to update status:", err); }
   };
@@ -129,7 +183,7 @@ const Proposal = ({ currentUser }) => {
     const project = projects.find(p => p.id === id);
     if (!window.confirm("Are you sure you want to delete this deal?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/projects/${id}`);
+      await axios.delete(`http://192.168.1.16:5000/api/projects/${id}`);
       sendNotification(`🗑️ Deleted deal: ${project?.deal_name}`);
       fetchProjects();
     } catch (err) { console.error("Failed to delete deal:", err); }
@@ -142,7 +196,7 @@ const Proposal = ({ currentUser }) => {
 
   const onDrop = (e, status) => {
     if (!canModify) return;
-    const id = e.dataTransfer.getData("id");
+    const id = Number(e.dataTransfer.getData("id")); // parse to number so find() matches DB id
     setDragOverCol(null);
     updateStatus(id, status);
   };
