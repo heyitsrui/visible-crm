@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import '../styles/tasks.css';
-import { sendNotification } from "../utils/notifService";
+import { sendNotification, getSocket } from "../utils/notifService";
 
 const API_BASE_URL = `http://${window.location.hostname}:5000`;
 
@@ -25,7 +25,7 @@ const Tasks = ({ loggedInUser }) => {
   const [editingTask, setEditingTask] = useState(null);
   const [ready, setReady]           = useState(false);
 
-  const isAdminOrManager = ['admin', 'manager'].includes(loggedInUser?.role?.toLowerCase());
+  const isAdminOrManager = ['admin'].includes(loggedInUser?.role?.toLowerCase());
 
   const [formData, setFormData] = useState({
     title: '',
@@ -39,6 +39,21 @@ const Tasks = ({ loggedInUser }) => {
     const t = setTimeout(() => setReady(true), 80);
     return () => clearTimeout(t);
   }, [loggedInUser]);
+
+  // ─── SOCKET: auto-refresh task board for all users ───────────────────────
+  useEffect(() => {
+    const socket = getSocket();
+    const onTaskRefresh = () => fetchData();
+    socket.on('task-assigned',  onTaskRefresh);
+    socket.on('task-updated',   onTaskRefresh);
+    socket.on('task-completed', onTaskRefresh);
+    return () => {
+      socket.off('task-assigned',  onTaskRefresh);
+      socket.off('task-updated',   onTaskRefresh);
+      socket.off('task-completed', onTaskRefresh);
+    };
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const fetchData = async () => {
     try {
@@ -62,12 +77,22 @@ const Tasks = ({ loggedInUser }) => {
 
   const handleToggleComplete = async (task) => {
     const newStatus = task.status === 'Completed' ? 'Pending' : 'Completed';
+    const actorName = loggedInUser?.name || 'Someone';
     try {
       await axios.put(`${API_BASE_URL}/api/tasks/${task.id}/status`, { status: newStatus });
       const message = newStatus === 'Completed'
-        ? `✅ Task Completed: ${task.title}`
-        : `⏳ Task Reopened: ${task.title}`;
+        ? `✅ "${task.title}" marked as completed by ${actorName}`
+        : `⏳ "${task.title}" reopened by ${actorName}`;
+      // Local notif for the person who toggled
       sendNotification(message);
+      // Broadcast to all other users
+      await axios.post(`${API_BASE_URL}/api/projects/notify`, {
+        event: 'task-completed',
+        taskTitle: task.title,
+        actorName,
+        newStatus,
+        changedBy: actorName,
+      });
       fetchData();
     } catch (err) {
       console.error("Update failed:", err);
@@ -92,15 +117,38 @@ const Tasks = ({ loggedInUser }) => {
 
       if (editingTask) {
         await axios.put(`${API_BASE_URL}/api/tasks/${editingTask.id}`, payload);
-        sendNotification(`📝 Updated task: ${formData.title}`);
+        sendNotification(`📝 Updated task: "${formData.title}"`);
+        // Broadcast task update to all users
+        await axios.post(`${API_BASE_URL}/api/projects/notify`, {
+          event: 'task-updated',
+          taskTitle: formData.title,
+          actorName: loggedInUser?.name || 'Admin',
+          changedBy: loggedInUser?.name || 'Admin',
+        });
       } else {
         await axios.post(`${API_BASE_URL}/api/tasks`, payload);
-        if (isAdminOrManager && parseInt(targetUserId) !== parseInt(loggedInUser.id)) {
-          const assignedUser = users.find(u => parseInt(u.id) === parseInt(targetUserId));
-          sendNotification(`📤 Assigned "${formData.title}" to ${assignedUser?.name || 'Employee'}`);
-        } else {
-          sendNotification(`🆕 New task created: ${formData.title}`);
-        }
+        const assignedUser = users.find(u => parseInt(u.id) === parseInt(targetUserId));
+        const assigneeName = parseInt(targetUserId) === parseInt(loggedInUser.id)
+          ? loggedInUser?.name || 'themselves'
+          : assignedUser?.name || 'an employee';
+        const isAssignedToOther = isAdminOrManager && parseInt(targetUserId) !== parseInt(loggedInUser.id);
+
+        // Local notif for the admin/creator
+        sendNotification(
+          isAssignedToOther
+            ? `📤 You assigned "${formData.title}" to ${assigneeName}`
+            : `🆕 New task created: "${formData.title}"`
+        );
+        // Broadcast to ALL users — assigned user will see their name
+        await axios.post(`${API_BASE_URL}/api/projects/notify`, {
+          event: 'task-assigned',
+          taskTitle: formData.title,
+          assigneeName,
+          assigneeId: parseInt(targetUserId),
+          assignerName: loggedInUser?.name || 'Admin',
+          priority: formData.priority,
+          changedBy: loggedInUser?.name || 'Admin',
+        });
       }
       closeModal();
       fetchData();
@@ -251,7 +299,7 @@ const Tasks = ({ loggedInUser }) => {
                     <div className="tk-owner-tag">
                       <User size={11} />
                       {parseInt(task.user_id) === parseInt(loggedInUser.id)
-                        ? <strong>Me (Admin)</strong>
+                        ? <strong>Me ({loggedInUser.name})</strong>
                         : <span>→ <strong>{task.user_name || `User #${task.user_id}`}</strong></span>
                       }
                     </div>
@@ -375,7 +423,7 @@ const Tasks = ({ loggedInUser }) => {
                         required
                       >
                         <option value="">Select employee…</option>
-                        <option value={loggedInUser.id}>Myself (Admin)</option>
+                        <option value={loggedInUser.id}>Myself ({loggedInUser.name})</option>
                         {users.filter(u => u.id !== loggedInUser.id).map(u => (
                           <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
                         ))}
