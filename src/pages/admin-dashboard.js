@@ -38,6 +38,8 @@ import {
 
 import "../styles/dashboard.css";
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -279,11 +281,11 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const statsRes = await fetch("http://192.168.1.16:5000/api/dashboard-stats");
+        const statsRes = await fetch(`${API_URL}/api/dashboard-stats`);
         const statsData = await statsRes.json();
 
         // Also fetch finance data to compute correct totals by status
-        const finRes = await fetch("http://192.168.1.16:5000/api/finance/projects");
+        const finRes = await fetch(`${API_URL}/api/finance/projects`);
         const finData = await finRes.json();
 
         if (statsData.success) {
@@ -308,7 +310,7 @@ export default function Dashboard() {
           setStats({ ...statsData.stats, totalPaid, totalDue });
         }
 
-        const taskRes = await fetch("http://192.168.1.16:5000/api/tasks");
+        const taskRes = await fetch(`${API_URL}/api/tasks`);
         const taskData = await taskRes.json();
         
         if (taskData.success) {
@@ -348,7 +350,7 @@ export default function Dashboard() {
       case 3: 
         return <Finance loggedInUser={loggedInUser?.role} />;
       case 4: 
-        return <BOM loggedInUser={loggedInUser?.role} />;
+        return <BOM loggedInUser={loggedInUser} />;
       case 'clients':
         return <Client userRole={loggedInUser?.role} />;
       case 'company':
