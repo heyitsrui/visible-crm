@@ -40,7 +40,7 @@ const Projects = ({ loggedInUser }) => {
     contact_number: '', position: '', project_name: '', date: ''
   });
 
-  const API_BASE_URL = `http://${window.location.hostname}:5000`;
+  const API_BASE_URL = process.env.REACT_APP_API_IP;
 
   const statusOptions = [
     'All', 'Lead', 'For Proposal', 'Proposal', 'Purchase Order',
