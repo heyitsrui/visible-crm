@@ -6,6 +6,8 @@ import '../styles/create-account.css';
 import bgVideo from '../assets/video/background.mp4';
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 function CreateAccount() {
   const [formData, setFormData] = useState({
     position: '',
@@ -53,7 +55,7 @@ function CreateAccount() {
     setError('');
 
     try {
-      await axios.post('http://192.168.1.16:5000/send-otp', {
+      await axios.post(`${API_URL}/send-otp`, {
         email: formData.email,
         type: 'signup',
       });
