@@ -3,7 +3,9 @@ import axios from 'axios';
 import '../styles/timetree.css';
 import { sendNotification, getSocket } from "../utils/notifService";
 
-const API_BASE_URL = 'http://192.168.1.16:5000/api/timetree';
+const API_URL = process.env.REACT_APP_API_IP;
+
+const API_BASE_URL = `${API_URL}/api/timetree`;
 const ROW_HEIGHT = 60;
 
 const formatDateToISO = (date) => {
@@ -194,7 +196,7 @@ const TimeTree = () => {
             // Local notif for the person who toggled
             sendNotification(msg);
             // Broadcast to all other users
-            await axios.post('http://192.168.1.16:5000/api/projects/notify', {
+            await axios.post(`${API_URL}/api/projects/notify`, {
                 event: 'timetree-event-completed',
                 eventTitle: event.title,
                 newStatus,
@@ -242,7 +244,7 @@ const TimeTree = () => {
                 // Local notif for creator
                 sendNotification(`📅 New Event Created: "${formData.title}" scheduled for ${formData.date} at ${formData.startTime}`);
                 // Broadcast to all other users
-                await axios.post('http://192.168.1.16:5000/api/projects/notify', {
+                await axios.post(`${API_URL}/api/projects/notify`, {
                     event: 'timetree-event-created',
                     eventTitle: formData.title,
                     eventDate: formData.date,
@@ -273,7 +275,7 @@ const TimeTree = () => {
                     sent_at: new Date().toISOString()
                 });
                 // Broadcast to all other users — sender sees their own message already
-                await axios.post('http://192.168.1.16:5000/api/projects/notify', {
+                await axios.post(`${API_URL}/api/projects/notify`, {
                     event: 'timetree-chat-sent',
                     eventTitle: activeEvent.title,
                     senderName: currentUser,
