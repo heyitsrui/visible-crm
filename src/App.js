@@ -9,6 +9,9 @@ import ConfirmEmail from './pages/confirm-email';
 import ForgotPassword from './pages/forgot-pass';
 import AdminDashboard from './pages/admin-dashboard';
 
+const API_URL = process.env.REACT_APP_API_IP;
+console.log("API URL:", API_URL); 
+
 // ==================== LOGIN VIEW ====================
 const LoginView = () => {
   const [email,        setEmail]        = useState('');
@@ -21,7 +24,7 @@ const LoginView = () => {
     e.preventDefault();
     setError('');
     try {
-      const response = await fetch('http://192.168.1.16:5000/login', {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
