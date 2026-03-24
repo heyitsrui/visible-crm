@@ -8,6 +8,8 @@ import axios from "axios";
 import "../styles/projects.css";
 import { sendNotification, getSocket } from "../utils/notifService";
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 const statusClass = (status) =>
   status?.toLowerCase().replace(/[\s/]+/g, "-") || "";
 
@@ -41,7 +43,7 @@ const Projects = ({ currentUser }) => {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get("http://192.168.1.16:5000/api/projects-detailed");
+      const res = await axios.get(`${API_URL}/api/projects-detailed`);
       if (res.data.success) setProjects(res.data.projects);
     } catch (err) {
       console.error("Project Fetch Error:", err);
@@ -88,7 +90,7 @@ const Projects = ({ currentUser }) => {
   const handleEditComment = async (commentId, newText) => {
     const authorName = currentUser?.name || currentUser?.username || "User";
     try {
-      await axios.put(`http://192.168.1.16:5000/api/comments/${commentId}`, {
+      await axios.put(`${API_URL}/api/comments/${commentId}`, {
         comment_text: newText,
         user_name: authorName,
       });
@@ -103,7 +105,7 @@ const Projects = ({ currentUser }) => {
     if (!window.confirm("Delete this comment?")) return;
     const authorName = currentUser?.name || currentUser?.username || "User";
     try {
-      await axios.delete(`http://192.168.1.16:5000/api/comments/${commentId}`, {
+      await axios.delete(`${API_URL}/api/comments/${commentId}`, {
         data: { user_name: authorName },
       });
       fetchData();
@@ -121,7 +123,7 @@ const Projects = ({ currentUser }) => {
     const project = projects.find((p) => p.id === projId);
 
     try {
-      await axios.post(`http://192.168.1.16:5000/api/projects/${projId}/comments`, {
+      await axios.post(`${API_URL}/api/projects/${projId}/comments`, {
         user_name: authorName,
         comment_text: commentText,
       });
@@ -130,7 +132,7 @@ const Projects = ({ currentUser }) => {
       // Local notif for the person who commented
       sendNotification(`💬 ${authorName} commented on "${projectName}": ${preview}`);
       // Broadcast to ALL other connected users via socket
-      await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+      await axios.post(`${API_URL}/api/projects/notify`, {
         event: "project-comment-added",
         projectName,
         authorName,
@@ -157,12 +159,12 @@ const Projects = ({ currentUser }) => {
 
     try {
       setIsUploading(true);
-      await axios.post(`http://192.168.1.16:5000/api/projects/${projId}/attachments`, formData);
+      await axios.post(`${API_URL}/api/projects/${projId}/attachments`, formData);
       const projectName = project?.deal_name || "Project";
       // Local notif for the person who uploaded
       sendNotification(`📎 ${uploaderName} attached "${file.name}" to "${projectName}"`);
       // Broadcast to ALL other connected users via socket
-      await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+      await axios.post(`${API_URL}/api/projects/notify`, {
         event: "project-attachment-added",
         projectName,
         uploaderName,
@@ -181,7 +183,7 @@ const Projects = ({ currentUser }) => {
   const handleDeleteAttachment = async (fileId) => {
     if (!window.confirm("Delete this file?")) return;
     try {
-      await axios.delete(`http://192.168.1.16:5000/api/attachments/${fileId}`);
+      await axios.delete(`${API_URL}/api/attachments/${fileId}`);
       fetchData();
     } catch (err) {
       alert("Delete failed");
@@ -384,7 +386,7 @@ const Projects = ({ currentUser }) => {
                             {proj.attachments.map((file) => (
                               <div key={file.id} className="pj-file-item">
                                 <a
-                                  href={`http://192.168.1.16:5000/uploads/${file.file_path}`}
+                                  href={`${API_URL}/uploads/${file.file_path}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="pj-file-link"
