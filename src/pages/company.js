@@ -4,6 +4,8 @@ import * as XLSX from 'xlsx';
 import '../styles/contacts.css';
 import { sendNotification, getSocket } from '../utils/notifService';
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 /* ── Helpers ──────────────────────────────────────────────── */
 const coInitials = (name) => {
   const words = (name || '').trim().split(/\s+/);
@@ -51,7 +53,7 @@ const Company = ({ userRole }) => {
   const fetchCompanies = async () => {
     try {
       setIsLoading(true);
-      const res  = await fetch('http://192.168.1.16:5000/api/companies');
+      const res  = await fetch(`${API_URL}/api/companies`);
       const data = await res.json();
       if (data.success) setCompanies(data.companies || []);
     } catch (err) { console.error('Fetch failed:', err); }
@@ -109,7 +111,7 @@ const Company = ({ userRole }) => {
         });
         const valid = mapped.filter((c) => c.company_name?.toString().trim());
         if (!valid.length) return alert('Import failed: No valid company names found.');
-        const res    = await fetch('http://192.168.1.16:5000/api/companies/bulk', {
+        const res    = await fetch(`${API_URL}/api/companies/bulk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ companies: valid }),
@@ -127,7 +129,7 @@ const Company = ({ userRole }) => {
     if (!canEdit) return;
     if (!window.confirm('Delete this company?')) return;
     try {
-      const res  = await fetch(`http://192.168.1.16:5000/api/companies/${id}`, { method: 'DELETE' });
+      const res  = await fetch(`${API_URL}/api/companies/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) fetchCompanies();
     } catch (err) { console.error('Delete error:', err); }
@@ -143,7 +145,7 @@ const Company = ({ userRole }) => {
     e.preventDefault();
     if (!canEdit) return;
     try {
-      const res  = await fetch('http://192.168.1.16:5000/api/companies', {
+      const res  = await fetch(`${API_URL}/api/companies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -154,7 +156,7 @@ const Company = ({ userRole }) => {
         // Local notif for the creator
         sendNotification(`🏢 New company added: "${formData.name}"${formData.industry ? ` · ${formData.industry}` : ''}`);
         // Broadcast to all other users
-        await fetch('http://192.168.1.16:5000/api/projects/notify', {
+        await fetch(`${API_URL}/api/projects/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
