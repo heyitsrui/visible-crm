@@ -25,7 +25,7 @@ const Finance = ({ loggedInUser }) => {
   const [statusFilter, setStatusFilter]     = useState('All');
   const [ready, setReady]                   = useState(false);
 
-  const API_BASE_URL = `http://${window.location.hostname}:5000`;
+  const API_BASE_URL = process.env.REACT_APP_API_IP;
   const canManageFinance = loggedInUser === 'admin' || loggedInUser === 'finance';
 
   const statusOptions = [
