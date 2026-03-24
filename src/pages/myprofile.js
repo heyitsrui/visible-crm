@@ -6,6 +6,8 @@ import {
 import axios from "axios";
 import "../styles/myprofile.css";
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 const permissionsMap = {
   admin:     ["Full System Access", "User Management", "Project Approval"],
   manager:   ["Team Access", "Project View", "Task Management"],
@@ -36,7 +38,7 @@ const MyProfile = ({ user, onProfileUpdate }) => {
     const fetch = async () => {
       if (!user?.id) return;
       try {
-        const res = await axios.get(`http://192.168.1.16:5000/api/users/${user.id}`);
+        const res = await axios.get(`${API_URL}/api/users/${user.id}`);
         if (res.data.success) {
           const u = res.data.user;
           setProfileData({ name: u.name||"", phone: u.phone||"", about: u.about||"", avatar: u.avatar||"" });
@@ -70,7 +72,7 @@ const MyProfile = ({ user, onProfileUpdate }) => {
   /* ── Save ───────────────────────────────────────────── */
   const handleSave = async () => {
     try {
-      const res = await axios.put(`http://192.168.1.16:5000/api/users/${user.id}/profile`, {
+      const res = await axios.put(`${API_URL}/api/users/${user.id}/profile`, {
         name:   draft.name,
         phone:  draft.phone,
         about:  draft.about,
