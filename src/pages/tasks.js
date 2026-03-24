@@ -7,7 +7,7 @@ import axios from 'axios';
 import '../styles/tasks.css';
 import { sendNotification, getSocket } from "../utils/notifService";
 
-const API_BASE_URL = `http://${window.location.hostname}:5000`;
+const API_BASE_URL = process.env.REACT_APP_API_IP;
 
 const priorityClass = (p) => p?.toLowerCase() || 'low';
 
