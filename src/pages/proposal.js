@@ -5,6 +5,8 @@ import "../styles/proposal.css";
 import { sendNotification, getSocket } from "../utils/notifService";
 import { FileUp, Lock, Unlock, User, DollarSign, Pencil, Trash2 } from "lucide-react";
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 const Proposal = ({ currentUser }) => {
   const [projects, setProjects]       = useState([]);
   const [search, setSearch]           = useState("");
@@ -91,7 +93,7 @@ const Proposal = ({ currentUser }) => {
 
   const fetchProjects = async () => {
     try {
-      const res = await axios.get("http://192.168.1.16:5000/api/projects");
+      const res = await axios.get(`${API_URL}/api/projects`);
       if (res.data.success) setProjects(res.data.projects);
     } catch (err) { console.error("Failed to fetch projects:", err); }
   };
@@ -122,7 +124,7 @@ const Proposal = ({ currentUser }) => {
       });
 
       try {
-        const res = await axios.post("http://192.168.1.16:5000/api/projects/bulk", { deals: formattedDeals });
+        const res = await axios.post(`${API_URL}/api/projects/bulk`, { deals: formattedDeals });
         if (res.data.success) { alert(res.data.message); fetchProjects(); }
       } catch (err) {
         alert("Upload failed. Check console for error details.");
@@ -138,17 +140,17 @@ const Proposal = ({ currentUser }) => {
     if (!form.deal_name) return alert("Deal name required");
     try {
       if (editing) {
-        await axios.put(`http://192.168.1.16:5000/api/projects/${editing.id}`, form);
-        await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+        await axios.put(`${API_URL}/api/projects/${editing.id}`, form);
+        await axios.post(`${API_URL}/api/projects/notify`, {
           event: "deal-updated",
           dealName: form.deal_name,
           changedBy: currentUser?.name || "Admin",
         });
         sendNotification(`📝 Updated deal: ${form.deal_name}`);
       } else {
-        const res = await axios.post("http://192.168.1.16:5000/api/projects", form);
+        const res = await axios.post(`${API_URL}/api/projects`, form);
         // Broadcast to all clients so board refreshes + notification appears
-        await axios.post("http://192.168.1.16:5000/api/projects/notify", {
+        await axios.post(`${API_URL}/api/projects/notify`, {
           event: "deal-created",
           dealName: form.deal_name,
           changedBy: currentUser?.name || "Admin",
@@ -166,7 +168,7 @@ const Proposal = ({ currentUser }) => {
       const dealName = project?.deal_name || "Unknown Deal"; // ← fixes "undefined"
       const changedBy = currentUser?.name || "Admin";
 
-      await axios.put(`http://192.168.1.16:5000/api/projects/${id}/status`, {
+      await axios.put(`${API_URL}/api/projects/${id}/status`, {
         status,
         dealName,   // ← send dealName so server can include it in the broadcast
         changedBy,
@@ -183,7 +185,7 @@ const Proposal = ({ currentUser }) => {
     const project = projects.find(p => p.id === id);
     if (!window.confirm("Are you sure you want to delete this deal?")) return;
     try {
-      await axios.delete(`http://192.168.1.16:5000/api/projects/${id}`);
+      await axios.delete(`${API_URL}/api/projects/${id}`);
       sendNotification(`🗑️ Deleted deal: ${project?.deal_name}`);
       fetchProjects();
     } catch (err) { console.error("Failed to delete deal:", err); }
