@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck, AlertCircle, Check } from "lucide-react";
 import "../styles/c-pass.css";
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 /* ── Password strength helper ───────────────────────────── */
 const getStrength = (pwd) => {
   if (!pwd) return { score: 0, label: "", cls: "" };
@@ -53,7 +55,7 @@ const CPass = ({ user }) => {
 
     setLoading(true);
     try {
-      const response = await fetch("http://192.168.1.16:5000/reset-password", {
+      const response = await fetch(`${API_URL}/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email, password: newPassword }),
