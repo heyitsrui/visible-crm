@@ -17,7 +17,7 @@ const StatusBadge = ({ status }) => (
 );
 
 /* ── Component ────────────────────────────────────────────── */
-const API_BASE_URL = `http://${window.location.hostname}:5000`;
+const API_BASE_URL = process.env.REACT_APP_API_IP;
 
 const Client = ({ userRole }) => {
   const [isModalOpen,   setIsModalOpen]   = useState(false);
@@ -165,7 +165,7 @@ const Client = ({ userRole }) => {
         // Local notif for the creator
         sendNotification(`👤 New client added: ${fullName}${formData.assoc_company ? ` (${formData.assoc_company})` : ''}`);
         // Broadcast to all other users
-        await fetch(`http://${window.location.hostname}:5000/api/projects/notify`, {
+        await fetch(`${API_BASE_URL}/api/projects/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
