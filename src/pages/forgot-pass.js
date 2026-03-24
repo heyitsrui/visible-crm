@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import '../styles/forgot-pass.css';
 import bgVideo from '../assets/video/background.mp4';
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 const STEP_META = [
   { icon: Mail,        label: 'Step 1 of 3', title: 'Forgot Password?',  sub: 'Enter the email address linked to your account.'       },
   { icon: ShieldCheck, label: 'Step 2 of 3', title: 'Verify Your Email', sub: 'Enter the 6-digit code we sent to your inbox.'          },
@@ -27,7 +29,7 @@ function ForgotPassword() {
   const [isLoading,       setIsLoading]       = useState(false);
 
   const inputRefs = useRef([]);
-  const API = 'http://192.168.1.16:5000';
+  const API = `${API_URL}`;
 
   const meta = STEP_META[step - 1];
   const StepIcon = meta.icon;
