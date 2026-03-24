@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Search, X, Trash2, Edit3, UserCog, Users, Mail, Phone, Shield } from "lucide-react";
 import "../styles/contacts.css";
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 /* ── Helpers ──────────────────────────────────────────────── */
 const userInitials = (name) => {
   const words = (name || "").trim().split(/\s+/);
@@ -34,7 +36,7 @@ export default function UserManagement({ currentUser }) {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const res  = await fetch("http://192.168.1.16:5000/api/users");
+      const res  = await fetch(`${API_URL}/api/users`);
       const data = await res.json();
       if (data.success)
         setUsers(data.users.sort((a, b) => a.id - b.id));
@@ -82,7 +84,7 @@ export default function UserManagement({ currentUser }) {
   /* ── Submit ───────────────────────────────────────────── */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const url    = editingId ? `http://192.168.1.16:5000/api/users/${editingId}/profile` : "http://192.168.1.16:5000/register";
+    const url    = editingId ? `${API_URL}/api/users/${editingId}/profile` : `${API_URL}/api/register`;
     const method = editingId ? "PUT" : "POST";
     try {
       const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
@@ -96,7 +98,7 @@ export default function UserManagement({ currentUser }) {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this user?")) return;
     try {
-      const res  = await fetch(`http://192.168.1.16:5000/api/users/${id}`, { method: "DELETE" });
+      const res  = await fetch(`${API_URL}/api/users/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) fetchUsers();
     } catch (err) { console.error(err); }
