@@ -1,11 +1,13 @@
 // utils/notifService.js
 import { io } from "socket.io-client";
 
+const API_URL = process.env.REACT_APP_API_IP;
+
 let socket = null;
 
 export const getSocket = () => {
   if (!socket) {
-    socket = io("http://192.168.1.16:5000", { transports: ["websocket"] });
+    socket = io(`${API_URL}`, { transports: ["websocket"] });
   }
   return socket;
 };
